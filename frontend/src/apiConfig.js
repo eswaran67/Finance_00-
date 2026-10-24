@@ -1,6 +1,7 @@
 /**
  * Resolves and normalizes the backend API base URL.
  * Handles:
+ *  - Accidentally setting health check URL: 'https://finance-000.onrender.com/api/health' -> 'https://finance-000.onrender.com/api'
  *  - Trailing slashes: 'https://finance-000.onrender.com/' -> 'https://finance-000.onrender.com/api'
  *  - Missing /api: 'https://finance-000.onrender.com' -> 'https://finance-000.onrender.com/api'
  *  - Already has /api: 'https://finance-000.onrender.com/api/' -> 'https://finance-000.onrender.com/api'
@@ -8,13 +9,24 @@
  *  - Same-origin production fallback when VITE_API_URL is unset
  */
 const getNormalizedApiBase = () => {
-  const envUrl = (import.meta.env.VITE_API_URL || '').trim();
+  let envUrl = (import.meta.env.VITE_API_URL || '').trim();
 
   if (envUrl) {
     // Strip trailing slashes
-    const stripped = envUrl.replace(/\/+$/, '');
+    let cleaned = envUrl.replace(/\/+$/, '');
+
+    // Strip accidental endpoints user may have copied into VITE_API_URL
+    cleaned = cleaned
+      .replace(/\/api\/health$/, '')
+      .replace(/\/health$/, '')
+      .replace(/\/api\/auth\/.*$/, '')
+      .replace(/\/auth\/.*$/, '')
+      .replace(/\/api\/dashboard.*$/, '')
+      .replace(/\/dashboard.*$/, '')
+      .replace(/\/+$/, '');
+
     // If it already ends with /api, keep it; otherwise append /api
-    return stripped.endsWith('/api') ? stripped : `${stripped}/api`;
+    return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
   }
 
   // In browser: if not running on localhost (e.g. deployed on Render / Vercel),
@@ -71,4 +83,3 @@ export async function safeFetchJson(url, options = {}) {
 
   return { response, data, ok: response.ok, status: response.status };
 }
-

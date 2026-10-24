@@ -20,11 +20,23 @@ const PORT = process.env.PORT || 5000;
 // Initialize SQLite database
 initDatabase();
 
-// Normalize duplicated slashes in URL path (e.g. //auth/login -> /auth/login)
+// Normalize duplicated slashes and accidental nested health/api path prefixes
 app.use((req, res, next) => {
   if (req.url && req.url.includes('//')) {
     req.url = req.url.replace(/\/+/g, '/');
   }
+
+  // Rewrite accidental /api/health/api/... or /api/health/... from malformed client base URLs
+  if (req.url.startsWith('/api/health/api/')) {
+    req.url = req.url.replace('/api/health/api/', '/api/');
+  } else if (req.url.startsWith('/api/health/') && !req.url.startsWith('/api/health?')) {
+    req.url = req.url.replace('/api/health/', '/api/');
+  } else if (req.url.startsWith('/health/api/')) {
+    req.url = req.url.replace('/health/api/', '/api/');
+  } else if (req.url.startsWith('/health/') && !req.url.startsWith('/health?') && req.url !== '/health') {
+    req.url = req.url.replace('/health/', '/api/');
+  }
+
   next();
 });
 
