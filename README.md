@@ -1,24 +1,33 @@
-# Thunai Ledger - Weekly Finance Dashboard
+# Finance_00 - Weekly Finance Management Dashboard
 
-A full-stack Weekly Finance Management Application with exact UI design replication, Node.js + Express backend, SQLite database persistence, and JWT authentication.
+A full-stack modern Weekly Finance (வாராந்திர நிதி மேலாண்மை) Management Application with executive UI design, Node.js + Express backend, SQLite database persistence, JWT authentication, bilingual localization (English & Tamil), and real-time ledger accounting.
 
 ---
 
-## 📸 Design Overview
+## 📸 Key Features
 
-- **Branding**: Thunai Ledger (`WEEKLY FINANCE DASHBOARD`)
-- **Theme Palette**: 
-  - Primary Teal: `#0b5f58` / `#0b4c49`
-  - Subtitle Teal: `#0f766e`
-  - Alert Warning Cream/Amber: Background `#fffbeb`, Border `#fde68b`, Text `#92400e`
-  - Typography: Inter (Semi-bold / Bold headings, clean slate inputs)
-- **Features**:
-  - Exact pixel-matched Auth Card from the reference design
-  - "Failed to fetch" banner simulation and live server connectivity
-  - Create account & Sign in toggle modes
-  - Pre-filled sample email (`1234@gmail.com`)
-  - Interactive Weekly Finance Dashboard with live SQLite database CRUD
-  - Management of **Customers**, **Weekly Loans**, and **Collections**
+- **Executive Luxury Design**:
+  - Obsidian Dark Mode and Crisp High-Contrast Light Mode with instant 1-click switcher.
+  - Balanced 3x2 metric cards with glow effects and live status badges.
+  - Fully responsive layout matching modern FinTech dashboard standards.
+- **Bilingual Localization (English & தமிழ்)**:
+  - Instant one-click language toggle (`🌐 English / தமிழ்`) on navigation bar and authentication screen.
+  - 100% comprehensive Tamil microfinance terminology (*தவணை*, *அசல்*, *வட்டி*, *பாக்கி*, *வசூல்*, *பாஸ்புக்*).
+  - Language selection auto-persists in `localStorage`.
+- **Payment Due Notifications**:
+  - Top payment due alert banner for borrowers scheduled to pay today.
+  - Interactive notification bell dropdown with total pending amounts, direct WhatsApp reminders, and a **"Clear All (அனைத்தும் நீக்கு)"** button.
+- **Dynamic Date Search**:
+  - Search collections by any custom calendar date.
+  - Quick buttons for **⚡ Today (இன்று)**, **📅 Yesterday (நேற்று)**, and **All Receipts**.
+- **Financial Accounting & Portfolio Analytics**:
+  - Today's Collection, This Week Collection, This Month Collection, Year Collection, Pending Balance, and All-Time Recovered.
+  - Customer directory with route/area filters.
+  - Active loans tracker with weekly repayment progress bars.
+  - Detailed collection receipts ledger.
+  - Customer Passbook modal with printable statement slip.
+  - Route Sheet (வசூல் பட்டியல்) for daily field collection agents.
+  - Delete / Settle loan management with balance integrity checks.
 
 ---
 
@@ -29,11 +38,11 @@ finance/
 ├── backend/
 │   ├── .env                 # Backend environment variables
 │   ├── .env.example         # Backend environment template
-│   ├── package.json         # Backend dependencies (Express, SQLite, JWT, bcryptjs)
-│   ├── thunai_ledger.db     # SQLite database (auto-generated)
+│   ├── package.json         # Backend dependencies (Express, better-sqlite3/sqlite3, JWT, bcryptjs)
+│   ├── thunai_ledger.db     # SQLite database
 │   ├── src/
-│   │   ├── server.js        # Main Express server entry point
-│   │   ├── db.js            # SQLite database initialization & migrations
+│   │   ├── server.js        # Express API server entry point
+│   │   ├── db.js            # SQLite database schema & migrations
 │   │   ├── middleware/
 │   │   │   └── auth.js      # JWT authentication middleware
 │   │   └── routes/
@@ -49,16 +58,16 @@ finance/
 │   ├── package.json         # React 19 + Vite 8
 │   ├── index.html           # HTML template with Inter font and wallet favicon
 │   └── src/
-│       ├── App.jsx          # Main application orchestrator
-│       ├── App.css          # Pixel-accurate custom CSS styles
-│       ├── index.css        # Clean reset & typography
+│       ├── App.jsx          # Main application orchestrator & theme/lang state
+│       ├── App.css          # Luxury executive FinTech styling
+│       ├── translations.js  # Bilingual English & Tamil dictionary
 │       ├── components/
-│       │   ├── AuthCard.jsx    # Exact UI implementation of the reference page
-│       │   ├── Dashboard.jsx   # Weekly finance operations center
-│       │   └── WalletIcon.jsx  # Custom SVG wallet glyph matching reference
+│       │   ├── AuthCard.jsx    # Authentication card with mode switch
+│       │   ├── Dashboard.jsx   # Core financial management hub
+│       │   └── WalletIcon.jsx  # Custom brand SVG icon
 │       └── main.jsx         # React DOM mount point
 │
-└── package.json             # Root runner scripts
+└── README.md
 ```
 
 ---
@@ -69,7 +78,7 @@ finance/
 ```env
 PORT=5000
 NODE_ENV=development
-JWT_SECRET=thunai_ledger_jwt_secret_key_987654321
+JWT_SECRET=weekly_finance_jwt_secret_key_987654321
 DATABASE_FILE=./thunai_ledger.db
 CORS_ORIGIN=http://localhost:5173
 ```
@@ -83,10 +92,10 @@ VITE_API_URL=http://localhost:5000/api
 
 ## 🗄️ Database Schema (SQLite)
 
-The database `thunai_ledger.db` is initialized automatically on first startup:
+The SQLite database stores relational microfinance records:
 
 1. **`users`**: User accounts (email, hashed password, name, role).
-2. **`customers`**: Borrowers info (name, phone, area/route, address).
+2. **`customers`**: Borrower profiles (name, phone, area/route, address).
 3. **`loans`**: Microfinance loan accounts (principal, interest rate, total repayment, weekly installment, tenure in weeks, weeks paid, status).
 4. **`collections`**: Weekly repayment ledger (amount collected, week number, collection date, notes).
 
@@ -103,7 +112,7 @@ The database `thunai_ledger.db` is initialized automatically on first startup:
 cd backend
 npm start
 ```
-The backend starts at `http://localhost:5000`.
+The backend runs at `http://localhost:5000` (Health check: `http://localhost:5000/api/health`).
 
 ### 2. Start the Frontend Development Server
 In another terminal:
@@ -111,12 +120,4 @@ In another terminal:
 cd frontend
 npm run dev
 ```
-The frontend opens at `http://localhost:5173`.
-
-### 3. Verification & Tests
-You can verify the database and test all API endpoints:
-```bash
-cd backend
-node scripts/test-db.js
-node scripts/test-api.js
-```
+The frontend opens at `http://localhost:5173` (or `http://localhost:5174`).
