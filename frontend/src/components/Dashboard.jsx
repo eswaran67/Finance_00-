@@ -31,6 +31,7 @@ import {
   Globe
 } from 'lucide-react';
 import { getTranslation } from '../translations';
+import { API_BASE, apiEndpoint } from '../apiConfig';
 
 export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = 'ta', toggleLang }) {
   const t = (key, params) => getTranslation(lang, key, params);
@@ -89,7 +90,6 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
     notes: 'Weekly cash collection' 
   });
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const token = localStorage.getItem('thunai_ledger_token');
 
   // Fetch Dashboard Stats & Lists
@@ -97,10 +97,18 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/dashboard/stats`, {
+      const res = await fetch(apiEndpoint('/dashboard/stats'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Failed to load dashboard data');
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = 'Failed to load dashboard data';
+        try {
+          const errData = JSON.parse(text);
+          if (errData.message) msg = errData.message;
+        } catch {}
+        throw new Error(msg);
+      }
       const data = await res.json();
       setStatsData(data);
     } catch (err) {
@@ -145,7 +153,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
     setLoadingStatement(true);
     setShowStatementModal(true);
     try {
-      const res = await fetch(`${API_BASE}/dashboard/customers/${customerId}/statement`, {
+      const res = await fetch(apiEndpoint(`/dashboard/customers/${customerId}/statement`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -162,7 +170,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   const handleRecordPayment = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/dashboard/collections`, {
+      const res = await fetch(apiEndpoint('/dashboard/collections'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +201,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/dashboard/customers`, {
+      const res = await fetch(apiEndpoint('/dashboard/customers'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -215,7 +223,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   const handleCreateLoan = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/dashboard/loans`, {
+      const res = await fetch(apiEndpoint('/dashboard/loans'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -243,7 +251,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   const handleMarkLoanCompleted = async (loanId) => {
     if (!window.confirm('Are you sure you want to mark this loan as fully COMPLETED / CLOSED?')) return;
     try {
-      const res = await fetch(`${API_BASE}/dashboard/loans/${loanId}/status`, {
+      const res = await fetch(apiEndpoint(`/dashboard/loans/${loanId}/status`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -263,7 +271,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   const executeDelete = async () => {
     if (!deleteConfirm) return;
     const { type, id } = deleteConfirm;
-    const endpoint = `${API_BASE}/dashboard/${type}s/${id}`;
+    const endpoint = apiEndpoint(`/dashboard/${type}s/${id}`);
 
     try {
       const res = await fetch(endpoint, {

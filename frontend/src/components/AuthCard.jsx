@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import WalletIcon from './WalletIcon';
 import { Eye, EyeOff } from 'lucide-react';
 import { getTranslation } from '../translations';
+import { apiEndpoint, safeFetchJson } from '../apiConfig';
 
 export default function AuthCard({ onAuthSuccess, serverOnline, theme, toggleTheme, lang, toggleLang }) {
   // Mode: 'register' (matching screenshot "Create account") or 'login' ("Sign in")
@@ -20,16 +21,14 @@ export default function AuthCard({ onAuthSuccess, serverOnline, theme, toggleThe
 
   const t = (key, params) => getTranslation(lang || 'ta', key, params);
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const endpoint = isRegisterMode ? `${API_BASE}/auth/register` : `${API_BASE}/auth/login`;
+    const endpoint = isRegisterMode ? apiEndpoint('/auth/register') : apiEndpoint('/auth/login');
 
     try {
-      const response = await fetch(endpoint, {
+      const { response, data, ok } = await safeFetchJson(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,11 +36,9 @@ export default function AuthCard({ onAuthSuccess, serverOnline, theme, toggleThe
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (!ok) {
         setAlertType('warning');
-        setAlertMessage(data.message || (lang === 'ta' ? 'அங்கீகாரம் தோல்வியுற்றது' : 'Authentication failed'));
+        setAlertMessage(data?.message || (lang === 'ta' ? 'அங்கீகாரம் தோல்வியுற்றது' : 'Authentication failed'));
         setIsLoading(false);
         return;
       }
@@ -53,13 +50,13 @@ export default function AuthCard({ onAuthSuccess, serverOnline, theme, toggleThe
         : (lang === 'ta' ? 'வரவேற்கிறோம்!' : 'Welcome back!')
       );
       
-      if (data.token) {
+      if (data?.token) {
         localStorage.setItem('thunai_ledger_token', data.token);
         localStorage.setItem('thunai_ledger_user', JSON.stringify(data.user));
       }
 
       setTimeout(() => {
-        onAuthSuccess(data.user);
+        onAuthSuccess(data?.user);
       }, 700);
 
     } catch (err) {

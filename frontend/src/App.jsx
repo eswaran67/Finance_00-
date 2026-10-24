@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AuthCard from './components/AuthCard';
 import Dashboard from './components/Dashboard';
+import { apiEndpoint } from './apiConfig';
 import './App.css';
 
 export default function App() {
@@ -17,8 +18,6 @@ export default function App() {
   const [lang, setLang] = useState(() => {
     return localStorage.getItem('finance_lang') || 'ta';
   });
-
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -40,7 +39,7 @@ export default function App() {
   // Check backend server connection
   const checkHealth = async () => {
     try {
-      const res = await fetch(`${API_BASE}/health`);
+      const res = await fetch(apiEndpoint('/health'));
       if (res.ok) {
         setServerOnline(true);
       } else {
