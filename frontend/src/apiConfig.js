@@ -71,3 +71,4 @@ export async function safeFetchJson(url, options = {}) {
 
   return { response, data, ok: response.ok, status: response.status };
 }
+
