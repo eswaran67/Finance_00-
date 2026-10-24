@@ -8,25 +8,30 @@ const router = Router();
 router.use(authenticateToken);
 
 // GET /api/dashboard/stats - Summary for the Weekly Finance Dashboard
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const customerCount = db.prepare('SELECT COUNT(*) as count FROM customers').get().count;
-    const activeLoanCount = db.prepare("SELECT COUNT(*) as count FROM loans WHERE status = 'active'").get().count;
-    const completedLoanCount = db.prepare("SELECT COUNT(*) as count FROM loans WHERE status = 'completed'").get().count;
+    const custRow = await db.get('SELECT COUNT(*) as count FROM customers');
+    const customerCount = custRow ? custRow.count : 0;
+
+    const activeRow = await db.get("SELECT COUNT(*) as count FROM loans WHERE status = 'active'");
+    const activeLoanCount = activeRow ? activeRow.count : 0;
+
+    const completedRow = await db.get("SELECT COUNT(*) as count FROM loans WHERE status = 'completed'");
+    const completedLoanCount = completedRow ? completedRow.count : 0;
     
     // Totals across all loans
-    const totals = db.prepare(`
+    const totals = await db.get(`
       SELECT 
         COALESCE(SUM(principal), 0) as totalPrincipal,
         COALESCE(SUM(total_amount), 0) as totalLoanAmount,
         COALESCE(SUM(amount_paid), 0) as totalAmountPaid
       FROM loans
-    `).get();
+    `) || { totalPrincipal: 0, totalLoanAmount: 0, totalAmountPaid: 0 };
 
     // Total collections received
-    const collectionTotals = db.prepare(`
+    const collectionTotals = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as totalCollected FROM collections
-    `).get();
+    `) || { totalCollected: 0 };
 
     const totalCollected = collectionTotals.totalCollected;
     const totalDue = Math.max(0, totals.totalLoanAmount - totalCollected);
@@ -38,44 +43,44 @@ router.get('/stats', (req, res) => {
     const currentYearStr = String(currentYear);
 
     // 1. Today's collection (இன்றைய வசூல்)
-    const todayCollectedRow = db.prepare(`
+    const todayCollectedRow = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
       FROM collections 
       WHERE collection_date = ?
-    `).get(today);
+    `, today) || { total: 0, count: 0 };
 
     // 2. This Week's collection (இந்த வார வசூல்)
-    const thisWeekRow = db.prepare(`
+    const thisWeekRow = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
       FROM collections 
       WHERE strftime('%Y-%W', collection_date) = strftime('%Y-%W', 'now')
-    `).get();
+    `) || { total: 0, count: 0 };
 
     // 3. This Month's collection (இந்த மாத வசூல் e.g. 2026-10)
-    const thisMonthRow = db.prepare(`
+    const thisMonthRow = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
       FROM collections 
       WHERE strftime('%Y-%m', collection_date) = ?
-    `).get(currentMonth);
+    `, currentMonth) || { total: 0, count: 0 };
 
     // 4. This Year's collection (இந்த வருட வசூல் e.g. 2026)
-    const thisYearRow = db.prepare(`
+    const thisYearRow = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
       FROM collections 
       WHERE strftime('%Y', collection_date) = ?
-    `).get(currentYearStr);
+    `, currentYearStr) || { total: 0, count: 0 };
 
     // Weekly Target across active loans
-    const weeklyTargetRow = db.prepare(`
+    const weeklyTargetRow = await db.get(`
       SELECT COALESCE(SUM(weekly_installment), 0) as weeklyTarget 
       FROM loans 
       WHERE status = 'active'
-    `).get();
+    `) || { weeklyTarget: 0 };
 
     const weeklyTarget = weeklyTargetRow.weeklyTarget || 0;
 
     // Monthly breakdown history
-    const monthlyBreakdown = db.prepare(`
+    const monthlyBreakdown = await db.all(`
       SELECT 
         strftime('%Y-%m', collection_date) as month_key,
         strftime('%Y', collection_date) as year,
@@ -84,10 +89,10 @@ router.get('/stats', (req, res) => {
       FROM collections
       GROUP BY month_key
       ORDER BY month_key DESC
-    `).all();
+    `);
 
     // All Collections with customer, loan & date details
-    const recentCollections = db.prepare(`
+    const recentCollections = await db.all(`
       SELECT 
         c.id,
         c.amount,
@@ -111,10 +116,10 @@ router.get('/stats', (req, res) => {
       JOIN loans l ON c.loan_id = l.id
       ORDER BY c.id DESC
       LIMIT 100
-    `).all();
+    `);
 
     // Customers with detailed financial calculations
-    const customers = db.prepare(`
+    const customers = await db.all(`
       SELECT 
         cust.id,
         cust.name,
@@ -131,10 +136,10 @@ router.get('/stats', (req, res) => {
         (SELECT MAX(start_date) FROM loans WHERE customer_id = cust.id) as latest_loan_date
       FROM customers cust
       ORDER BY cust.name ASC
-    `).all();
+    `);
 
     // Loans with full calculation details (vangina amount, balance, start_date)
-    const loans = db.prepare(`
+    const loans = await db.all(`
       SELECT 
         l.id,
         l.customer_id,
@@ -157,10 +162,10 @@ router.get('/stats', (req, res) => {
       ORDER BY 
         CASE WHEN l.status = 'active' THEN 0 ELSE 1 END,
         l.id DESC
-    `).all();
+    `);
 
     // Today's pending borrowers (who need to pay today)
-    const todayPendingDues = db.prepare(`
+    const allDueLoans = await db.all(`
       SELECT 
         l.id as loan_id,
         l.customer_id,
@@ -180,12 +185,15 @@ router.get('/stats', (req, res) => {
       JOIN customers c ON l.customer_id = c.id
       WHERE l.status = 'active' AND (l.total_amount - l.amount_paid) > 0
       ORDER BY l.weekly_installment DESC
-    `).all(today).filter(l => l.paid_today_count === 0);
+    `, today);
+
+    const todayPendingDues = allDueLoans.filter(l => l.paid_today_count === 0);
 
     // Unique areas for route filtering
-    const areas = db.prepare(`
+    const areasRows = await db.all(`
       SELECT DISTINCT area FROM customers WHERE area IS NOT NULL AND area != '' ORDER BY area ASC
-    `).all().map(r => r.area);
+    `);
+    const areas = areasRows.map(r => r.area);
 
     res.json({
       summary: {
@@ -231,10 +239,10 @@ router.get('/stats', (req, res) => {
 });
 
 // GET /api/dashboard/today-dues - Borrowers who need to pay today
-router.get('/today-dues', (req, res) => {
+router.get('/today-dues', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const dueLoans = db.prepare(`
+    const dueLoans = await db.all(`
       SELECT 
         l.id as loan_id,
         l.customer_id,
@@ -254,7 +262,7 @@ router.get('/today-dues', (req, res) => {
       JOIN customers c ON l.customer_id = c.id
       WHERE l.status = 'active' AND (l.total_amount - l.amount_paid) > 0
       ORDER BY l.weekly_installment DESC
-    `).all(today);
+    `, today);
 
     const pendingToday = dueLoans.filter(l => l.paid_today_count === 0);
 
@@ -270,11 +278,11 @@ router.get('/today-dues', (req, res) => {
 });
 
 // GET /api/dashboard/collections/by-date - Search collections on any specific date
-router.get('/collections/by-date', (req, res) => {
+router.get('/collections/by-date', async (req, res) => {
   try {
     const searchDate = req.query.date || new Date().toISOString().split('T')[0];
     
-    const collections = db.prepare(`
+    const collections = await db.all(`
       SELECT 
         c.id,
         c.amount,
@@ -296,13 +304,13 @@ router.get('/collections/by-date', (req, res) => {
       JOIN loans l ON c.loan_id = l.id
       WHERE c.collection_date = ?
       ORDER BY c.id DESC
-    `).all(searchDate);
+    `, searchDate);
 
-    const totalRow = db.prepare(`
+    const totalRow = await db.get(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
       FROM collections 
       WHERE collection_date = ?
-    `).get(searchDate);
+    `, searchDate) || { total: 0, count: 0 };
 
     res.json({
       date: searchDate,
@@ -317,24 +325,24 @@ router.get('/collections/by-date', (req, res) => {
 });
 
 // GET /api/dashboard/customers/:id/statement - Customer Passbook & Full History
-router.get('/customers/:id/statement', (req, res) => {
+router.get('/customers/:id/statement', async (req, res) => {
   try {
     const customerId = req.params.id;
-    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
+    const customer = await db.get('SELECT * FROM customers WHERE id = ?', customerId);
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found.' });
     }
 
-    const loans = db.prepare(`
+    const loans = await db.all(`
       SELECT 
         l.*,
         (l.total_amount - l.amount_paid) as balance_amount
       FROM loans l 
       WHERE l.customer_id = ? 
       ORDER BY l.id DESC
-    `).all(customerId);
+    `, customerId);
 
-    const collections = db.prepare(`
+    const collections = await db.all(`
       SELECT 
         c.*,
         l.total_amount,
@@ -343,15 +351,15 @@ router.get('/customers/:id/statement', (req, res) => {
       JOIN loans l ON c.loan_id = l.id
       WHERE c.customer_id = ?
       ORDER BY c.id DESC
-    `).all(customerId);
+    `, customerId);
 
-    const totals = db.prepare(`
+    const totals = await db.get(`
       SELECT 
         COALESCE(SUM(total_amount), 0) as total_borrowed,
         COALESCE(SUM(amount_paid), 0) as total_paid
       FROM loans 
       WHERE customer_id = ?
-    `).get(customerId);
+    `, customerId) || { total_borrowed: 0, total_paid: 0 };
 
     res.json({
       customer,
@@ -370,18 +378,17 @@ router.get('/customers/:id/statement', (req, res) => {
 });
 
 // POST /api/dashboard/customers - Create new customer
-router.post('/customers', (req, res) => {
+router.post('/customers', async (req, res) => {
   try {
     const { name, phone, area, address } = req.body;
     if (!name || !phone || !area) {
       return res.status(400).json({ message: 'Name, phone, and area are required.' });
     }
 
-    const stmt = db.prepare(`
-      INSERT INTO customers (user_id, name, phone, area, address)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(req.user.id, name.trim(), phone.trim(), area.trim(), address ? address.trim() : '');
+    const result = await db.run(
+      'INSERT INTO customers (user_id, name, phone, area, address) VALUES (?, ?, ?, ?, ?)',
+      req.user.id, name.trim(), phone.trim(), area.trim(), address ? address.trim() : ''
+    );
 
     res.status(201).json({
       message: 'Customer added successfully',
@@ -394,17 +401,17 @@ router.post('/customers', (req, res) => {
 });
 
 // DELETE /api/dashboard/customers/:id - Delete customer
-router.delete('/customers/:id', (req, res) => {
+router.delete('/customers/:id', async (req, res) => {
   try {
     const customerId = req.params.id;
-    const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
+    const customer = await db.get('SELECT id, name FROM customers WHERE id = ?', customerId);
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found.' });
     }
 
-    db.prepare('DELETE FROM collections WHERE customer_id = ?').run(customerId);
-    db.prepare('DELETE FROM loans WHERE customer_id = ?').run(customerId);
-    db.prepare('DELETE FROM customers WHERE id = ?').run(customerId);
+    await db.run('DELETE FROM collections WHERE customer_id = ?', customerId);
+    await db.run('DELETE FROM loans WHERE customer_id = ?', customerId);
+    await db.run('DELETE FROM customers WHERE id = ?', customerId);
 
     res.json({
       message: `Customer "${customer.name}" and all records have been deleted successfully.`
@@ -416,7 +423,7 @@ router.delete('/customers/:id', (req, res) => {
 });
 
 // POST /api/dashboard/loans - Create new weekly loan
-router.post('/loans', (req, res) => {
+router.post('/loans', async (req, res) => {
   try {
     const { customer_id, principal, interest_rate = 10, tenure_weeks = 10, start_date } = req.body;
     if (!customer_id || !principal) {
@@ -430,12 +437,11 @@ router.post('/loans', (req, res) => {
     const weeklyInstallment = Math.round(totalAmount / weeks);
     const sDate = start_date || new Date().toISOString().split('T')[0];
 
-    const stmt = db.prepare(`
-      INSERT INTO loans (customer_id, principal, interest_rate, total_amount, weekly_installment, tenure_weeks, weeks_paid, amount_paid, status, start_date)
-      VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'active', ?)
-    `);
-
-    const result = stmt.run(customer_id, princ, rate, totalAmount, weeklyInstallment, weeks, sDate);
+    const result = await db.run(
+      `INSERT INTO loans (customer_id, principal, interest_rate, total_amount, weekly_installment, tenure_weeks, weeks_paid, amount_paid, status, start_date)
+       VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'active', ?)`,
+      customer_id, princ, rate, totalAmount, weeklyInstallment, weeks, sDate
+    );
 
     res.status(201).json({
       message: 'Loan disbursed successfully',
@@ -451,13 +457,13 @@ router.post('/loans', (req, res) => {
 });
 
 // PUT /api/dashboard/loans/:id/status - Mark loan as completed
-router.put('/loans/:id/status', (req, res) => {
+router.put('/loans/:id/status', async (req, res) => {
   try {
     const loanId = req.params.id;
     const { status } = req.body;
     const validStatus = status === 'completed' ? 'completed' : 'active';
     
-    db.prepare('UPDATE loans SET status = ? WHERE id = ?').run(validStatus, loanId);
+    await db.run('UPDATE loans SET status = ? WHERE id = ?', validStatus, loanId);
 
     res.json({
       message: `Loan status updated to ${validStatus}.`
@@ -469,16 +475,16 @@ router.put('/loans/:id/status', (req, res) => {
 });
 
 // DELETE /api/dashboard/loans/:id - Delete a loan
-router.delete('/loans/:id', (req, res) => {
+router.delete('/loans/:id', async (req, res) => {
   try {
     const loanId = req.params.id;
-    const loan = db.prepare('SELECT id, customer_id, status FROM loans WHERE id = ?').get(loanId);
+    const loan = await db.get('SELECT id, customer_id, status FROM loans WHERE id = ?', loanId);
     if (!loan) {
       return res.status(404).json({ message: 'Loan account not found.' });
     }
 
-    db.prepare('DELETE FROM collections WHERE loan_id = ?').run(loanId);
-    db.prepare('DELETE FROM loans WHERE id = ?').run(loanId);
+    await db.run('DELETE FROM collections WHERE loan_id = ?', loanId);
+    await db.run('DELETE FROM loans WHERE id = ?', loanId);
 
     res.json({
       message: 'Loan account and its collection entries deleted successfully.'
@@ -490,7 +496,7 @@ router.delete('/loans/:id', (req, res) => {
 });
 
 // POST /api/dashboard/collections - Record received payment
-router.post('/collections', (req, res) => {
+router.post('/collections', async (req, res) => {
   try {
     const { loan_id, customer_id, amount, week_number, collection_date, collector_name, notes } = req.body;
     if (!loan_id || !amount) {
@@ -500,7 +506,7 @@ router.post('/collections', (req, res) => {
     const payAmount = Number(amount);
     const dateOfCollection = collection_date || new Date().toISOString().split('T')[0];
 
-    const loan = db.prepare('SELECT * FROM loans WHERE id = ?').get(loan_id);
+    const loan = await db.get('SELECT * FROM loans WHERE id = ?', loan_id);
     if (!loan) {
       return res.status(404).json({ message: 'Loan account not found.' });
     }
@@ -508,11 +514,9 @@ router.post('/collections', (req, res) => {
     const custId = customer_id || loan.customer_id;
     const weekNum = week_number ? Number(week_number) : (loan.weeks_paid + 1);
 
-    const insertColl = db.prepare(`
-      INSERT INTO collections (loan_id, customer_id, amount, week_number, collection_date, collector_name, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    const collResult = insertColl.run(
+    const collResult = await db.run(
+      `INSERT INTO collections (loan_id, customer_id, amount, week_number, collection_date, collector_name, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       loan_id, 
       custId, 
       payAmount, 
@@ -526,11 +530,12 @@ router.post('/collections', (req, res) => {
     const newWeeksPaid = Math.max(loan.weeks_paid + 1, weekNum);
     const newStatus = newAmountPaid >= loan.total_amount ? 'completed' : loan.status;
 
-    db.prepare(`
-      UPDATE loans 
-      SET amount_paid = ?, weeks_paid = ?, status = ?
-      WHERE id = ?
-    `).run(newAmountPaid, newWeeksPaid, newStatus, loan_id);
+    await db.run(
+      `UPDATE loans 
+       SET amount_paid = ?, weeks_paid = ?, status = ?
+       WHERE id = ?`,
+      newAmountPaid, newWeeksPaid, newStatus, loan_id
+    );
 
     const remainingBalance = Math.max(0, loan.total_amount - newAmountPaid);
 
@@ -549,28 +554,29 @@ router.post('/collections', (req, res) => {
 });
 
 // DELETE /api/dashboard/collections/:id - Undo / delete a collection entry
-router.delete('/collections/:id', (req, res) => {
+router.delete('/collections/:id', async (req, res) => {
   try {
     const collectionId = req.params.id;
-    const coll = db.prepare('SELECT * FROM collections WHERE id = ?').get(collectionId);
+    const coll = await db.get('SELECT * FROM collections WHERE id = ?', collectionId);
     if (!coll) {
       return res.status(404).json({ message: 'Collection entry not found.' });
     }
 
-    const loan = db.prepare('SELECT * FROM loans WHERE id = ?').get(coll.loan_id);
+    const loan = await db.get('SELECT * FROM loans WHERE id = ?', coll.loan_id);
     if (loan) {
       const rollbackAmountPaid = Math.max(0, loan.amount_paid - coll.amount);
       const rollbackWeeksPaid = Math.max(0, loan.weeks_paid - 1);
       const rollbackStatus = rollbackAmountPaid < loan.total_amount ? 'active' : loan.status;
 
-      db.prepare(`
-        UPDATE loans 
-        SET amount_paid = ?, weeks_paid = ?, status = ?
-        WHERE id = ?
-      `).run(rollbackAmountPaid, rollbackWeeksPaid, rollbackStatus, loan.id);
+      await db.run(
+        `UPDATE loans 
+         SET amount_paid = ?, weeks_paid = ?, status = ?
+         WHERE id = ?`,
+        rollbackAmountPaid, rollbackWeeksPaid, rollbackStatus, loan.id
+      );
     }
 
-    db.prepare('DELETE FROM collections WHERE id = ?').run(collectionId);
+    await db.run('DELETE FROM collections WHERE id = ?', collectionId);
 
     res.json({
       message: 'Collection payment removed and loan balance reversed successfully.'

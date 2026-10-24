@@ -17,9 +17,6 @@ const distPath = path.resolve(__dirname, '../../frontend/dist');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize SQLite database
-initDatabase();
-
 // Normalize duplicated slashes and accidental nested health/api path prefixes
 app.use((req, res, next) => {
   if (req.url && req.url.includes('//')) {
@@ -124,13 +121,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-// Start Server
-const server = app.listen(PORT, () => {
-  console.log(`===============================================`);
-  console.log(` Weekly Finance API server running on port ${PORT}`);
-  console.log(` Local URL: http://localhost:${PORT}`);
-  console.log(` Health check: http://localhost:${PORT}/api/health`);
-  console.log(`===============================================`);
+// Initialize database and start server
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`===============================================`);
+    console.log(` Weekly Finance API server running on port ${PORT}`);
+    console.log(` Local URL: http://localhost:${PORT}`);
+    console.log(` Health check: http://localhost:${PORT}/api/health`);
+    console.log(`===============================================`);
+  });
+}).catch((err) => {
+  console.error('[Database] Failed to initialize database:', err);
+  process.exit(1);
 });
 
 // Keep process active indefinitely on Windows

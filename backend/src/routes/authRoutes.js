@@ -8,7 +8,7 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'thunai_ledger_fallback_secret_key_123';
 
 // POST /api/auth/register
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
@@ -19,7 +19,7 @@ router.post('/register', (req, res) => {
     const emailTrimmed = email.trim().toLowerCase();
 
     // Check if user already exists
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(emailTrimmed);
+    const existing = await db.get('SELECT id FROM users WHERE email = ?', emailTrimmed);
     if (existing) {
       return res.status(409).json({ message: 'An account with this email already exists. Please sign in.' });
     }
@@ -31,13 +31,11 @@ router.post('/register', (req, res) => {
     const hashedPassword = bcrypt.hashSync(password, 10);
     const displayName = (name && name.trim()) || emailTrimmed.split('@')[0];
 
-    const insertStmt = db.prepare(`
-      INSERT INTO users (name, email, password_hash, role)
-      VALUES (?, ?, ?, 'admin')
-    `);
-
-    const result = insertStmt.run(displayName, emailTrimmed, hashedPassword);
-    const userId = Number(result.lastInsertRowid);
+    const result = await db.run(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      displayName, emailTrimmed, hashedPassword, 'admin'
+    );
+    const userId = result.lastInsertRowid;
 
     const user = {
       id: userId,
@@ -60,7 +58,7 @@ router.post('/register', (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -69,7 +67,7 @@ router.post('/login', (req, res) => {
     }
 
     const emailTrimmed = email.trim().toLowerCase();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(emailTrimmed);
+    const user = await db.get('SELECT * FROM users WHERE email = ?', emailTrimmed);
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password.' });
@@ -101,9 +99,9 @@ router.post('/login', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = db.prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?').get(req.user.id);
+    const user = await db.get('SELECT id, name, email, role, created_at FROM users WHERE id = ?', req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -115,4 +113,3 @@ router.get('/me', authenticateToken, (req, res) => {
 });
 
 export default router;
-
