@@ -28,17 +28,36 @@ import {
   X,
   Sun,
   Moon,
-  Globe
+  Globe,
+  Palette,
+  HardDriveDownload,
+  Download,
+  FileText
 } from 'lucide-react';
 import { getTranslation } from '../translations';
 import { API_BASE, apiEndpoint } from '../apiConfig';
+import SaveFilesModal from './SaveFilesModal';
+import { exportDateCollectionsCsv, exportFullLedgerCsv, exportCustomersCsv } from '../utils/fileExport';
 
-export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = 'ta', toggleLang }) {
+export default function Dashboard({ 
+  user, 
+  onLogout, 
+  theme, 
+  toggleTheme, 
+  lang = 'ta', 
+  toggleLang,
+  bgConfig,
+  setBgConfig,
+  onOpenBgModal 
+}) {
   const t = (key, params) => getTranslation(lang, key, params);
   const [statsData, setStatsData] = useState(null);
   const [activeTab, setActiveTab] = useState('customers'); // 'customers' | 'loans' | 'collections' | 'analytics'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Save to My Files modal state
+  const [showSaveFilesModal, setShowSaveFilesModal] = useState(false);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,6 +110,79 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
   });
 
   const token = localStorage.getItem('thunai_ledger_token');
+
+  // Floating Toast Notification System
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'warning' | 'error' | 'info', id }
+  const showToast = (message, type = 'success') => {
+    const id = Date.now();
+    setToast({ message, type, id });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(current => (current?.id === toast.id ? null : current));
+      }, 4200);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Customer Avatar Initials and Gradient Colors
+  const getInitials = (name = '') => {
+    return name
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase())
+      .join('') || 'CU';
+  };
+
+  const getAvatarGradient = (name = '') => {
+    const gradients = [
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)',
+      'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+      'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return gradients[Math.abs(hash) % gradients.length];
+  };
+
+  // WhatsApp Share Statement
+  const handleShareStatementWhatsApp = () => {
+    if (!customerStatement?.customer) return;
+    const { customer, summary, loans } = customerStatement;
+    const activeLoan = loans?.find(l => l.status === 'active') || loans?.[0];
+    const msg = lang === 'ta'
+      ? `*வாராந்திர நிதி - வாடிக்கையாளர் அறிக்கை*\n\n` +
+        `👤 வாடிக்கையாளர்: *${customer.name}*\n` +
+        `📞 எண்: ${customer.phone}\n` +
+        `📍 பகுதி: ${customer.area}\n\n` +
+        `💰 கடன் தொகை: *${formatCurrency(summary.totalBorrowed)}*\n` +
+        `✅ செலுத்தியது: *${formatCurrency(summary.totalPaid)}*\n` +
+        `⚠️ மீதி பாக்கி: *${formatCurrency(summary.pendingBalance)}*\n` +
+        (activeLoan ? `⚡ வார தவணை: *${formatCurrency(activeLoan.weekly_installment)}*\n` : '') +
+        `\nநன்றி! - வாராந்திர நிதி மேலாண்மை`
+      : `*Weekly Finance - Account Statement*\n\n` +
+        `👤 Customer: *${customer.name}*\n` +
+        `📞 Phone: ${customer.phone}\n` +
+        `📍 Area: ${customer.area}\n\n` +
+        `💰 Total Borrowed: *${formatCurrency(summary.totalBorrowed)}*\n` +
+        `✅ Amount Paid: *${formatCurrency(summary.totalPaid)}*\n` +
+        `⚠️ Pending Balance: *${formatCurrency(summary.pendingBalance)}*\n` +
+        (activeLoan ? `⚡ Weekly Due: *${formatCurrency(activeLoan.weekly_installment)}*\n` : '') +
+        `\nThank you! - Weekly Finance Management`;
+    const cleanPhone = (customer.phone || '').replace(/[^0-9]/g, '');
+    const url = `https://wa.me/${cleanPhone ? (cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone) : ''}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
 
   // Fetch Dashboard Stats & Lists
   const fetchDashboardStats = async () => {
@@ -159,7 +251,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
       const data = await res.json();
       setCustomerStatement(data);
     } catch (err) {
-      alert('Error fetching customer statement: ' + err.message);
+      showToast(err.message || 'Error fetching customer statement', 'error');
       setShowStatementModal(false);
     } finally {
       setLoadingStatement(false);
@@ -187,13 +279,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
         }
         fetchDashboardStats();
         if (data.isCompleted) {
-          alert(`🎉 Great! Loan is now fully paid and marked as COMPLETED! (மீதி பேலன்ஸ்: ₹0)`);
+          showToast(lang === 'ta' ? '🎉 கடன் முழுமையாக முடிக்கப்பட்டது! (மீதி: ₹0)' : '🎉 Loan fully settled & completed! (Balance: ₹0)', 'success');
+        } else {
+          showToast(lang === 'ta' ? `₹${newPayment.amount} வசூல் வெற்றிகரமாக பதிவு செய்யப்பட்டது! ✅` : `Payment of ₹${newPayment.amount} recorded successfully! ✅`, 'success');
         }
       } else {
-        alert(data.message || 'Failed to record payment');
+        showToast(data.message || 'Failed to record payment', 'warning');
       }
     } catch (err) {
-      alert('Network error: ' + err.message);
+      showToast('Network error: ' + err.message, 'error');
     }
   };
 
@@ -213,9 +307,10 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
         setShowAddCustomer(false);
         setNewCustomer({ name: '', phone: '', area: '', address: '' });
         fetchDashboardStats();
+        showToast(lang === 'ta' ? 'புதிய வாடிக்கையாளர் வெற்றிகரமாக சேர்க்கப்பட்டார்! 👤' : 'Customer added successfully! 👤', 'success');
       }
     } catch (err) {
-      alert('Failed to add customer: ' + err.message);
+      showToast('Failed to add customer: ' + err.message, 'error');
     }
   };
 
@@ -241,15 +336,16 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           start_date: todayDateStr 
         });
         fetchDashboardStats();
+        showToast(lang === 'ta' ? 'கடன் வெற்றிகரமாக வழங்கப்பட்டது! 💼' : 'Loan disbursed successfully! 💼', 'success');
       }
     } catch (err) {
-      alert('Failed to create loan: ' + err.message);
+      showToast('Failed to create loan: ' + err.message, 'error');
     }
   };
 
   // Mark Loan as Completed / Settle Early
   const handleMarkLoanCompleted = async (loanId) => {
-    if (!window.confirm('Are you sure you want to mark this loan as fully COMPLETED / CLOSED?')) return;
+    if (!window.confirm(lang === 'ta' ? 'இந்த கடனை முழுமையாக முடித்து வைக்கவா?' : 'Are you sure you want to mark this loan as fully COMPLETED / CLOSED?')) return;
     try {
       const res = await fetch(apiEndpoint(`/dashboard/loans/${loanId}/status`), {
         method: 'PUT',
@@ -261,9 +357,10 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
       });
       if (res.ok) {
         fetchDashboardStats();
+        showToast(lang === 'ta' ? 'கடன் வெற்றிகரமாக முடிக்கப்பட்டது!' : 'Loan marked as completed!', 'info');
       }
     } catch (err) {
-      alert('Failed to update status: ' + err.message);
+      showToast('Failed to update status: ' + err.message, 'error');
     }
   };
 
@@ -282,11 +379,12 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
       if (res.ok) {
         setDeleteConfirm(null);
         fetchDashboardStats();
+        showToast(lang === 'ta' ? 'வெற்றிகரமாக நீக்கப்பட்டது! 🗑️' : 'Deleted successfully! 🗑️', 'info');
       } else {
-        alert(data.message || 'Delete failed');
+        showToast(data.message || 'Delete failed', 'error');
       }
     } catch (err) {
-      alert('Error deleting item: ' + err.message);
+      showToast('Error deleting item: ' + err.message, 'error');
     }
   };
 
@@ -564,6 +662,16 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
             <span>{user?.email || '1234@gmail.com'}</span>
           </div>
 
+          <button onClick={onOpenBgModal} className="btn-secondary nav-action-btn" title={t('bgCustomizerBtn')}>
+            <Palette size={15} />
+            <span>{t('bgCustomizerBtn')}</span>
+          </button>
+
+          <button onClick={() => setShowSaveFilesModal(true)} className="btn-secondary nav-action-btn save-files-nav-btn" title={t('saveToFilesBtn')}>
+            <HardDriveDownload size={15} />
+            <span>{t('saveToFilesBtn')}</span>
+          </button>
+
           <button onClick={() => setShowRouteSheetModal(true)} className="btn-secondary" title={t('routeSheetBtn')}>
             <Printer size={15} />
             {t('routeSheetBtn')}
@@ -641,7 +749,7 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                 if (firstActive) {
                   openQuickCollect(firstActive);
                 } else {
-                  alert(lang === 'ta' ? 'வசூல் செய்ய கடன் கணக்குகள் ஏதுமில்லை.' : 'No active loans available to collect.');
+                  showToast(lang === 'ta' ? 'வசூல் செய்ய கடன் கணக்குகள் ஏதுமில்லை.' : 'No active loans available to collect.', 'warning');
                 }
               }} 
               className="btn-primary"
@@ -680,7 +788,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           </div>
 
           {/* 2. This Week's Collection (இந்த வார வசூல்) */}
-          <div className="stat-card stat-card-week">
+          <div 
+            className="stat-card stat-card-week clickable"
+            onClick={() => {
+              setActiveTab('collections');
+              setPeriodFilter('THIS_WEEK');
+              setSpecificDateSearch('');
+            }}
+            title={lang === 'ta' ? 'இந்த வார வசூல் விவரங்களை பார்க்க கிளிக் செய்க' : 'Click to view this week\'s collections'}
+          >
             <div className="stat-card-glow-bg"></div>
             <div className="stat-label">
               <span className="stat-label-title">{t('weekCollectionTitle')}</span>
@@ -695,7 +811,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           </div>
 
           {/* 3. This Month's Collection (இந்த மாத வசூல்) */}
-          <div className="stat-card stat-card-month">
+          <div 
+            className="stat-card stat-card-month clickable"
+            onClick={() => {
+              setActiveTab('collections');
+              setPeriodFilter('THIS_MONTH');
+              setSpecificDateSearch('');
+            }}
+            title={lang === 'ta' ? 'இந்த மாத வசூல் விவரங்களை பார்க்க கிளிக் செய்க' : 'Click to view this month\'s collections'}
+          >
             <div className="stat-card-glow-bg"></div>
             <div className="stat-label">
               <span className="stat-label-title">{t('monthCollectionTitle')}</span>
@@ -710,7 +834,13 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           </div>
 
           {/* 4. This Year's Collection (இந்த வருட வசூல் - 2026) */}
-          <div className="stat-card stat-card-year">
+          <div 
+            className="stat-card stat-card-year clickable"
+            onClick={() => {
+              setActiveTab('analytics');
+            }}
+            title={lang === 'ta' ? 'முழு நிதி பகுப்பாய்வு பார்க்க கிளிக் செய்க' : 'Click to view full portfolio analytics'}
+          >
             <div className="stat-card-glow-bg"></div>
             <div className="stat-label">
               <span className="stat-label-title">{t('yearCollectionTitle', { year: summary.currentYear })}</span>
@@ -725,7 +855,14 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           </div>
 
           {/* 5. Pending Balance Due (மீதி பாக்கி) */}
-          <div className="stat-card stat-card-balance">
+          <div 
+            className="stat-card stat-card-balance clickable"
+            onClick={() => {
+              setActiveTab('loans');
+              setStatusFilter('active');
+            }}
+            title={lang === 'ta' ? 'நிலுவை கடன்களை பார்க்க கிளிக் செய்க' : 'Click to view active pending loans'}
+          >
             <div className="stat-card-glow-bg"></div>
             <div className="stat-label">
               <span className="stat-label-title">{t('pendingBalanceTitle')}</span>
@@ -740,7 +877,13 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
           </div>
 
           {/* 6. Total Collected All Time (மொத்த வசூல்) */}
-          <div className="stat-card stat-card-total">
+          <div 
+            className="stat-card stat-card-total clickable"
+            onClick={() => {
+              setActiveTab('customers');
+            }}
+            title={lang === 'ta' ? 'வாடிக்கையாளர் பட்டியலை பார்க்க கிளிக் செய்க' : 'Click to view all customers'}
+          >
             <div className="stat-card-glow-bg"></div>
             <div className="stat-label">
               <span className="stat-label-title">{t('allTimeCollectedTitle')}</span>
@@ -809,6 +952,25 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                 <XCircle size={14} /> {t('dateQuickClear')}
               </button>
             )}
+
+            <button 
+              type="button"
+              className="date-quick-btn save-date-file-btn"
+              onClick={() => {
+                const targetD = specificDateSearch || todayDateStr;
+                const res = exportDateCollectionsCsv(targetD, statsData?.collections || []);
+                showToast(
+                  lang === 'ta' 
+                    ? `${res.count} வசூல்கள் கோப்பாகச் சேமிக்கப்பட்டன!` 
+                    : `${res.count} collection receipts for ${targetD} saved to file!`, 
+                  'success'
+                );
+              }}
+              title={t('saveDateToFilesBtn')}
+            >
+              <Download size={14} />
+              <span>{t('saveDateToFilesBtn')}</span>
+            </button>
           </div>
         </div>
 
@@ -828,6 +990,24 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
               <span className="date-count-pill">
                 {t('receiptsFound', { count: filteredCollections.length })}
               </span>
+
+              <button 
+                onClick={() => {
+                  const res = exportDateCollectionsCsv(specificDateSearch, statsData?.collections || []);
+                  showToast(
+                    lang === 'ta' 
+                      ? `${res.count} வசூல்கள் கோப்பாகச் சேமிக்கப்பட்டன!` 
+                      : `${res.count} receipts saved to file!`, 
+                    'success'
+                  );
+                }}
+                className="btn-primary"
+                style={{ padding: '6px 14px', fontSize: '12.5px', gap: '6px' }}
+                title={t('saveDateToFilesBtn')}
+              >
+                <Download size={14} />
+                <span>{lang === 'ta' ? 'இத்தேதியை கோப்பில் சேமி' : 'Save Date to File'}</span>
+              </button>
 
               <button 
                 onClick={() => setSpecificDateSearch('')}
@@ -934,8 +1114,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                     return (
                       <tr key={cust.id}>
                         <td>
-                          <strong>{cust.name}</strong>
-                          <div style={{ fontSize: '11.5px', color: '#64748b' }}>{cust.address || 'No address'}</div>
+                          <div className="customer-cell">
+                            <div className="customer-avatar" style={{ background: getAvatarGradient(cust.name) }}>
+                              {getInitials(cust.name)}
+                            </div>
+                            <div className="customer-cell-details">
+                              <strong className="customer-name-heading">{cust.name}</strong>
+                              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{cust.address || 'No address'}</div>
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <div>
@@ -1076,8 +1263,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                       <tr key={loan.id}>
                         <td><strong>#LN-{loan.id}</strong></td>
                         <td>
-                          <strong>{loan.customer_name}</strong>
-                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{loan.customer_area} • {loan.customer_phone}</div>
+                          <div className="customer-cell">
+                            <div className="customer-avatar" style={{ background: getAvatarGradient(loan.customer_name) }}>
+                              {getInitials(loan.customer_name)}
+                            </div>
+                            <div className="customer-cell-details">
+                              <strong className="customer-name-heading">{loan.customer_name}</strong>
+                              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{loan.customer_area} • {loan.customer_phone}</div>
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
@@ -1251,10 +1445,22 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right', fontSize: '13px' }}>
-                  <div><strong>{filteredCollections.length}</strong> {t('receiptsFound', { count: filteredCollections.length })}</div>
-                  <div style={{ opacity: 0.85, marginTop: '2px' }}>
-                    {t('weekTarget', { amount: formatCurrency(summary.weeklyTarget) })}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button 
+                    onClick={() => setShowSaveFilesModal(true)} 
+                    className="btn-secondary" 
+                    style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    title={t('saveToFilesBtn')}
+                  >
+                    <HardDriveDownload size={14} />
+                    <span>{t('saveToFilesBtn')}</span>
+                  </button>
+
+                  <div style={{ textAlign: 'right', fontSize: '13px' }}>
+                    <div><strong>{filteredCollections.length}</strong> {t('receiptsFound', { count: filteredCollections.length })}</div>
+                    <div style={{ opacity: 0.85, marginTop: '2px' }}>
+                      {t('weekTarget', { amount: formatCurrency(summary.weeklyTarget) })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1286,8 +1492,15 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                           </span>
                         </td>
                         <td>
-                          <strong>{col.customer_name}</strong>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{col.customer_phone}</div>
+                          <div className="customer-cell">
+                            <div className="customer-avatar" style={{ background: getAvatarGradient(col.customer_name) }}>
+                              {getInitials(col.customer_name)}
+                            </div>
+                            <div className="customer-cell-details">
+                              <strong className="customer-name-heading">{col.customer_name}</strong>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{col.customer_phone}</div>
+                            </div>
+                          </div>
                         </td>
                         <td>{col.customer_area}</td>
                         <td>Week {col.week_number}</td>
@@ -1561,14 +1774,67 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                   placeholder="e.g. 1100"
                   style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--primary-emerald)' }}
                 />
+
+                {/* Quick Amount Chips */}
+                {newPayment.weekly_installment > 0 && (
+                  <div className="quick-amount-chips-wrap">
+                    <span className="chips-hint">⚡ {lang === 'ta' ? 'விரைவு தேர்வு:' : 'Quick Select:'}</span>
+                    <div className="quick-amount-chips">
+                      <button 
+                        type="button" 
+                        className="amount-chip"
+                        onClick={() => setNewPayment({ ...newPayment, amount: Math.min(newPayment.balance, newPayment.weekly_installment) })}
+                      >
+                        ⚡ {lang === 'ta' ? '1 தவணை' : '1 Due'}: {formatCurrency(newPayment.weekly_installment)}
+                      </button>
+                      {newPayment.weekly_installment * 2 <= newPayment.balance && (
+                        <button 
+                          type="button" 
+                          className="amount-chip"
+                          onClick={() => setNewPayment({ ...newPayment, amount: newPayment.weekly_installment * 2 })}
+                        >
+                          2 {lang === 'ta' ? 'தவணை' : 'Dues'}: {formatCurrency(newPayment.weekly_installment * 2)}
+                        </button>
+                      )}
+                      {newPayment.balance > 0 && (
+                        <button 
+                          type="button" 
+                          className="amount-chip chip-full"
+                          onClick={() => setNewPayment({ ...newPayment, amount: newPayment.balance })}
+                        >
+                          🎯 {lang === 'ta' ? 'முழு பாக்கி' : 'Full Balance'}: {formatCurrency(newPayment.balance)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div style={{ background: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-sub)', fontWeight: 600 }}>
-                  👉 {t('summaryNewBalance')} <strong>{formatCurrency(projectedBalance)}</strong>
-                </span>
+              {/* Dynamic Live Balance Progress Box */}
+              <div className="live-balance-preview-box">
+                <div className="preview-top">
+                  <span className="preview-label">👉 {t('summaryNewBalance')}</span>
+                  <strong className={`preview-amount ${projectedBalance === 0 ? 'cleared' : ''}`}>
+                    {formatCurrency(projectedBalance)}
+                  </strong>
+                </div>
+
+                <div className="preview-progress-track">
+                  <div 
+                    className={`preview-progress-fill ${projectedBalance === 0 ? 'fill-completed' : ''}`}
+                    style={{ 
+                      width: `${Math.min(100, Math.round(((newPayment.amount_paid + enteredAmount) / (newPayment.total_amount || 1)) * 100))}%` 
+                    }}
+                  />
+                </div>
+
+                <div className="preview-sub-meta">
+                  <span>{lang === 'ta' ? 'செலுத்தியது' : 'Paid'}: {formatCurrency(newPayment.amount_paid + enteredAmount)}</span>
+                  <span>{Math.min(100, Math.round(((newPayment.amount_paid + enteredAmount) / (newPayment.total_amount || 1)) * 100))}%</span>
+                </div>
+
                 {projectedBalance === 0 && (
-                  <div style={{ color: '#16a34a', fontWeight: 700, marginTop: '4px' }}>
+                  <div className="loan-cleared-banner">
                     🎉 {lang === 'ta' ? 'முழு தொகையும் செலுத்தப்பட்டது! கடன் நிறைவடையும்!' : 'Full payment! Loan will be closed automatically!'}
                   </div>
                 )}
@@ -1631,7 +1897,17 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                   {t('passbookAccountSummary')}
                 </p>
               </div>
-              <button className="close-btn" onClick={() => setShowStatementModal(false)}>×</button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={() => window.print()} 
+                  className="btn-secondary" 
+                  style={{ padding: '7px 13px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Print Account Statement"
+                >
+                  <Printer size={14} /> {t('printBtn')}
+                </button>
+                <button className="close-btn" onClick={() => setShowStatementModal(false)}>×</button>
+              </div>
             </div>
 
             {loadingStatement ? (
@@ -1639,26 +1915,27 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
             ) : customerStatement ? (
               <div>
                 <div className="passbook-header">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div>
-                      <h2 style={{ fontSize: '20px', fontWeight: 800 }}>{customerStatement.customer.name}</h2>
-                      <div style={{ fontSize: '13px', opacity: 0.9 }}>
-                        📞 {customerStatement.customer.phone} • 📍 {customerStatement.customer.area}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div className="customer-avatar large" style={{ background: getAvatarGradient(customerStatement.customer.name) }}>
+                        {getInitials(customerStatement.customer.name)}
+                      </div>
+                      <div>
+                        <h2 style={{ fontSize: '20px', fontWeight: 800 }}>{customerStatement.customer.name}</h2>
+                        <div style={{ fontSize: '13px', opacity: 0.9 }}>
+                          📞 {customerStatement.customer.phone} • 📍 {customerStatement.customer.area}
+                        </div>
                       </div>
                     </div>
 
-                    <a 
-                      href={`https://wa.me/91${customerStatement.customer.phone.replace(/[^0-9]/g, '').slice(-10)}?text=${encodeURIComponent(
-                        lang === 'ta'
-                          ? `வணக்கம் ${customerStatement.customer.name}, உங்கள் Weekly Finance பாஸ்புக்: மொத்த கடன்: ${formatCurrency(customerStatement.summary.totalBorrowed)}, செலுத்தியது: ${formatCurrency(customerStatement.summary.totalPaid)}, மீதி பாக்கி: ${formatCurrency(customerStatement.summary.pendingBalance)}.`
-                          : `Hello ${customerStatement.customer.name}, Weekly Finance Passbook: Total Borrowed: ${formatCurrency(customerStatement.summary.totalBorrowed)}, Paid: ${formatCurrency(customerStatement.summary.totalPaid)}, Pending Balance: ${formatCurrency(customerStatement.summary.pendingBalance)}.`
-                      )}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button 
+                      type="button"
+                      onClick={handleShareStatementWhatsApp}
                       className="btn-whatsapp"
+                      title="Share Statement on WhatsApp"
                     >
                       <MessageCircle size={14} /> {t('whatsappReminder')}
-                    </a>
+                    </button>
                   </div>
 
                   <div className="passbook-grid">
@@ -1986,20 +2263,70 @@ export default function Dashboard({ user, onLogout, theme, toggleTheme, lang = '
                 />
               </div>
 
-              {newLoan.principal && (
-                <div style={{ background: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', padding: '12px', borderRadius: '10px', marginBottom: '14px', fontSize: '13px' }}>
-                  <div>{t('summaryTotalPayable')} <strong>{formatCurrency(Number(newLoan.principal) + (Number(newLoan.principal) * Number(newLoan.interest_rate) / 100))}</strong></div>
-                  <div style={{ color: 'var(--primary-emerald)', fontWeight: 700, marginTop: '4px' }}>
-                    {t('summaryWeeklyDue')} {formatCurrency(Math.round((Number(newLoan.principal) + (Number(newLoan.principal) * Number(newLoan.interest_rate) / 100)) / (Number(newLoan.tenure_weeks) || 10)))} / week
+              {newLoan.principal && (() => {
+                const princ = Number(newLoan.principal) || 0;
+                const rate = Number(newLoan.interest_rate) || 0;
+                const weeks = Number(newLoan.tenure_weeks) || 1;
+                const interestAmt = Math.round(princ * (rate / 100));
+                const totalRepay = princ + interestAmt;
+                const weeklyInst = Math.round(totalRepay / (weeks > 0 ? weeks : 1));
+                return (
+                  <div className="loan-calculator-box">
+                    <div className="calc-header">
+                      <span>⚡ {lang === 'ta' ? 'கடன் கணக்கீடு நேரலை' : 'Live Loan Calculation'}</span>
+                    </div>
+                    <div className="calc-row">
+                      <span>{t('analyticsTotalBorrowed')}:</span>
+                      <strong>{formatCurrency(princ)}</strong>
+                    </div>
+                    <div className="calc-row">
+                      <span>{t('analyticsTotalInterest')} ({rate}%):</span>
+                      <strong style={{ color: 'var(--accent-gold)' }}>+{formatCurrency(interestAmt)}</strong>
+                    </div>
+                    <div className="calc-row highlight">
+                      <span>{t('analyticsTotalRepayable')}:</span>
+                      <strong style={{ color: 'var(--primary-emerald)', fontSize: '16px' }}>{formatCurrency(totalRepay)}</strong>
+                    </div>
+                    <div className="calc-installment-banner">
+                      ⚡ {t('colWeeklyInstallment')}: <strong>{formatCurrency(weeklyInst)} / {lang === 'ta' ? 'வாரம்' : 'week'}</strong> ({weeks} {lang === 'ta' ? 'வாரங்கள்' : 'weeks'})
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <button type="submit" className="submit-button" style={{ marginBottom: 0, marginTop: '8px' }}>
                 {t('btnDisburseConfirm')}
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 7: SAVE TO MY FILES & FULL DATA EXPORT              */}
+      {/* ========================================================= */}
+      <SaveFilesModal 
+        isOpen={showSaveFilesModal}
+        onClose={() => setShowSaveFilesModal(false)}
+        statsData={statsData}
+        user={user}
+        lang={lang}
+        onShowToast={showToast}
+      />
+
+      {/* Floating Executive Toast Notification */}
+      {toast && (
+        <div className={`toast-notification toast-${toast.type}`}>
+          <div className="toast-icon">
+            {toast.type === 'success' && <CheckCircle2 size={18} />}
+            {toast.type === 'warning' && <AlertTriangle size={18} />}
+            {toast.type === 'error' && <XCircle size={18} />}
+            {toast.type === 'info' && <Bell size={18} />}
+          </div>
+          <div className="toast-message">{toast.message}</div>
+          <button className="toast-close-btn" onClick={() => setToast(null)} title="Close">
+            <X size={14} />
+          </button>
         </div>
       )}
     </div>

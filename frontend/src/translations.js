@@ -190,7 +190,43 @@ export const translations = {
     backendApiStatus: "Backend API:",
     onlineText: "Online (Port 5000)",
     offlineText: "Offline",
-    checkConnection: "Check Connection"
+    checkConnection: "Check Connection",
+
+    // Background Customizer
+    bgCustomizerBtn: "Background",
+    bgModalTitle: "Website Background & Theme Customizer",
+    bgModalSub: "Customize website background colors, luxury dark/light themes, or upload your own image wallpaper",
+    bgTabPresets: "🎨 Themes & Presets",
+    bgTabColor: "🌈 Custom Color",
+    bgTabImage: "🖼️ Custom Wallpaper Image",
+    bgSelectPreset: "Choose an Executive Theme:",
+    bgCustomColorLabel: "Select Custom Background Color:",
+    bgCustomImageLabel: "Upload or Enter Image URL:",
+    bgUploadImage: "Upload Image from Device",
+    bgImageUrlPlaceholder: "Paste image URL (https://...)",
+    bgOverlayDarkness: "Darkness Overlay (Readability):",
+    bgBlurLevel: "Glass Blur Level:",
+    bgResetDefault: "Reset to Default Theme",
+    bgApply: "Apply & Save Background",
+    bgSavedToast: "Website background updated successfully!",
+
+    // Save to My Files
+    saveToFilesBtn: "Save to My Files",
+    saveDateToFilesBtn: "Save Date to File",
+    saveModalTitle: "Save to My Files & Data Export",
+    saveModalSub: "Download full database backup, Excel spreadsheets, and date-wise reports directly to your device",
+    exportJsonBackup: "Complete System Backup (JSON File)",
+    exportJsonBackupSub: "Full database backup containing all customers, loans, collections & financial logs",
+    exportCsvLedger: "Complete Accounts Ledger (Excel / CSV)",
+    exportCsvLedgerSub: "Full spreadsheet of all receipts, customer loans & balances for Excel or Google Sheets",
+    exportCustomersCsv: "Customers Directory (Excel / CSV)",
+    exportCustomersCsvSub: "Complete list of customer names, mobile numbers, routes, and pending balances",
+    exportDateWiseCsv: "Date-wise Collection Report (CSV)",
+    exportDateWiseSub: "Receipts and collection totals for a specific date or date range",
+    chooseDateForExport: "Choose Date to Export:",
+    allDatesOption: "All Dates (Complete History)",
+    downloadFileBtn: "Download File",
+    fileSavedToast: "File downloaded successfully to your device!"
   },
 
   ta: {
@@ -382,7 +418,43 @@ export const translations = {
     backendApiStatus: "சர்வர் நிலை:",
     onlineText: "இணைக்கப்பட்டுள்ளது (போர்ட் 5000)",
     offlineText: "இணைக்கப்படவில்லை",
-    checkConnection: "இணைப்பை சரிபார்"
+    checkConnection: "இணைப்பை சரிபார்",
+
+    // Background Customizer
+    bgCustomizerBtn: "பின்னணி",
+    bgModalTitle: "வலைத்தள பின்னணி & தீம் அமைப்புகள்",
+    bgModalSub: "வலைத்தளத்தின் பின்னணி நிறம், பிரீமியம் தீம்கள், படங்கள் மற்றும் வால்பேப்பர்களை மாற்றவும்",
+    bgTabPresets: "🎨 தீம்கள் & மாதிரிகள்",
+    bgTabColor: "🌈 தனிப்பயன் வண்ணம்",
+    bgTabImage: "🖼️ பின்னணி படம் / வால்பேப்பர்",
+    bgSelectPreset: "பிரீமியம் தீமைத் தேர்ந்தெடுக்கவும்:",
+    bgCustomColorLabel: "விரும்பிய பின்னணி வண்ணத்தை தேர்வு செய்க:",
+    bgCustomImageLabel: "படம் பதிவேற்ற அல்லது URL இணைக்க:",
+    bgUploadImage: "சாதனத்திலிருந்து படம் பதிவேற்றவும்",
+    bgImageUrlPlaceholder: "படத்தின் URL உள்ளிடவும் (https://...)",
+    bgOverlayDarkness: "இருள் / தெளிவு நிலை (Darkness Overlay):",
+    bgBlurLevel: "மங்கலாக்கும் அளவு (Glass Blur):",
+    bgResetDefault: "இயல்பு நிலைக்கு மீட்டமை",
+    bgApply: "பின்னணியை அமை & சேமி",
+    bgSavedToast: "வலைத்தள பின்னணி வெற்றிகரமாக மாற்றப்பட்டது!",
+
+    // Save to My Files
+    saveToFilesBtn: "கோப்பில் சேமி",
+    saveDateToFilesBtn: "தேதியை கோப்பில் சேமி",
+    saveModalTitle: "கோப்பில் சேமி & தரவு ஏற்றுமதி",
+    saveModalSub: "முழு நிதி காப்புப்பிரதி, எக்செல் விரிதாள்கள் மற்றும் தேதி அறிக்கைகளை உங்கள் சாதனத்தில் பதிவிறக்கவும்",
+    exportJsonBackup: "முழு சிஸ்டம் காப்புப்பிரதி (JSON கோப்பு)",
+    exportJsonBackupSub: "வாடிக்கையாளர்கள், கடன்கள், வசூல் விவரங்களின் முழுமையான பேக்கப் கோப்பு",
+    exportCsvLedger: "முழு வசூல் கணக்கு ஏடு (Excel / CSV கோப்பு)",
+    exportCsvLedgerSub: "எக்செல் அல்லது கூகிள் ஷீட்ஸில் திறக்கக்கூடிய முழு கணக்கு விவரங்கள்",
+    exportCustomersCsv: "வாடிக்கையாளர் பட்டியல் (Excel / CSV கோப்பு)",
+    exportCustomersCsvSub: "பெயர்கள், போன் எண்கள், பகுதிகள் மற்றும் பாக்கி தொகைகளின் பட்டியல்",
+    exportDateWiseCsv: "தேதி வாரியான வசூல் அறிக்கை (CSV)",
+    exportDateWiseSub: "குறிப்பிட்ட தேதிக்கான அனைத்து வசூல்கள் மற்றும் மொத்த தொகை அறிக்கை",
+    chooseDateForExport: "ஏற்றுமதி செய்ய வேண்டிய தேதியை தேர்வு செய்க:",
+    allDatesOption: "அனைத்து தேதிகளும் (முழு வரலாறு)",
+    downloadFileBtn: "கோப்பைப் பதிவிறக்கு",
+    fileSavedToast: "கோப்பு உங்கள் சாதனத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!"
   }
 };
 

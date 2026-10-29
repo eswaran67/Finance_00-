@@ -144,3 +144,4 @@ migrate().catch(err => {
   console.error('\n❌ Migration failed:', err);
   process.exit(1);
 });
+

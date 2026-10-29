@@ -587,4 +587,76 @@ router.delete('/collections/:id', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/export-all - Complete Data Export for "Save to My Files"
+router.get('/export-all', async (req, res) => {
+  try {
+    const customers = await db.all(`
+      SELECT 
+        c.*,
+        (SELECT COUNT(*) FROM loans WHERE customer_id = c.id AND status = 'active') as active_loans_count,
+        (SELECT COUNT(*) FROM loans WHERE customer_id = c.id AND status = 'completed') as completed_loans_count,
+        (SELECT COALESCE(SUM(total_amount), 0) FROM loans WHERE customer_id = c.id) as total_borrowed,
+        (SELECT COALESCE(SUM(amount_paid), 0) FROM loans WHERE customer_id = c.id) as total_paid,
+        (SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM loans WHERE customer_id = c.id AND status = 'active') as pending_balance
+      FROM customers c
+      ORDER BY c.id ASC
+    `);
+
+    const loans = await db.all(`
+      SELECT 
+        l.*,
+        cust.name as customer_name,
+        cust.phone as customer_phone,
+        cust.area as customer_area,
+        (l.total_amount - l.amount_paid) as pending_balance
+      FROM loans l
+      LEFT JOIN customers cust ON l.customer_id = cust.id
+      ORDER BY l.id ASC
+    `);
+
+    const collections = await db.all(`
+      SELECT 
+        c.*,
+        cust.name as customer_name,
+        cust.phone as customer_phone,
+        cust.area as customer_area,
+        l.principal as loan_principal,
+        l.total_amount as loan_total_amount,
+        l.weekly_installment as loan_weekly_installment,
+        (l.total_amount - l.amount_paid) as current_loan_balance
+      FROM collections c
+      LEFT JOIN customers cust ON c.customer_id = cust.id
+      LEFT JOIN loans l ON c.loan_id = l.id
+      ORDER BY c.collection_date DESC, c.id DESC
+    `);
+
+    const summary = {
+      totalCustomers: customers.length,
+      totalLoans: loans.length,
+      activeLoans: loans.filter(l => l.status === 'active').length,
+      completedLoans: loans.filter(l => l.status === 'completed').length,
+      totalPrincipalDisbursed: loans.reduce((sum, l) => sum + (Number(l.principal) || 0), 0),
+      totalRepayablePortfolio: loans.reduce((sum, l) => sum + (Number(l.total_amount) || 0), 0),
+      totalCollected: collections.reduce((sum, c) => sum + (Number(c.amount) || 0), 0),
+      totalOutstandingBalance: loans
+        .filter(l => l.status === 'active')
+        .reduce((sum, l) => sum + Math.max(0, (Number(l.total_amount) || 0) - (Number(l.amount_paid) || 0)), 0),
+      totalReceipts: collections.length
+    };
+
+    res.json({
+      success: true,
+      appName: 'Weekly Finance',
+      exportedAt: new Date().toISOString(),
+      summary,
+      customers,
+      loans,
+      collections
+    });
+  } catch (error) {
+    console.error('Export all data error:', error);
+    res.status(500).json({ message: 'Failed to export database records.' });
+  }
+});
+
 export default router;

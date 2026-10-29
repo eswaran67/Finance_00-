@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AuthCard from './components/AuthCard';
 import Dashboard from './components/Dashboard';
+import BackgroundCustomizerModal from './components/BackgroundCustomizerModal';
+import { getSavedBackground, applyBackgroundToDOM } from './utils/backgroundManager';
 import { apiEndpoint } from './apiConfig';
 import './App.css';
 
@@ -19,6 +21,10 @@ export default function App() {
     return localStorage.getItem('finance_lang') || 'ta';
   });
 
+  // Background customization state
+  const [bgConfig, setBgConfig] = useState(() => getSavedBackground());
+  const [showBgModal, setShowBgModal] = useState(false);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('finance_theme', theme);
@@ -28,8 +34,16 @@ export default function App() {
     localStorage.setItem('finance_lang', lang);
   }, [lang]);
 
+  // Apply custom background on mount & config changes
+  useEffect(() => {
+    applyBackgroundToDOM(bgConfig);
+  }, [bgConfig]);
+
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      return next;
+    });
   };
 
   const toggleLang = () => {
@@ -79,6 +93,24 @@ export default function App() {
 
   return (
     <div className="app-root" data-theme={theme}>
+      {/* Dynamic Custom Background Image Layer if image mode is active */}
+      {bgConfig.mode === 'image' && bgConfig.imageUrl && (
+        <div 
+          className="app-custom-image-bg" 
+          style={{
+            backgroundImage: `url(${bgConfig.imageUrl})`,
+            filter: bgConfig.blur ? `blur(${bgConfig.blur}px)` : 'none'
+          }}
+        >
+          <div 
+            className="app-custom-image-overlay" 
+            style={{
+              backgroundColor: `rgba(0, 0, 0, ${bgConfig.overlayDarkness !== undefined ? bgConfig.overlayDarkness : 0.82})`
+            }}
+          />
+        </div>
+      )}
+
       {currentUser ? (
         <Dashboard 
           user={currentUser} 
@@ -87,6 +119,9 @@ export default function App() {
           toggleTheme={toggleTheme}
           lang={lang}
           toggleLang={toggleLang}
+          bgConfig={bgConfig}
+          setBgConfig={setBgConfig}
+          onOpenBgModal={() => setShowBgModal(true)}
         />
       ) : (
         <div className="auth-page-container">
@@ -112,6 +147,14 @@ export default function App() {
             </button>
 
             <button 
+              onClick={() => setShowBgModal(true)} 
+              className="simulate-btn"
+              title="Customize Website Background / பின்னணி மாற்ற"
+            >
+              🎨 {lang === 'ta' ? 'பின்னணி' : 'Background'}
+            </button>
+
+            <button 
               onClick={toggleLang} 
               className="simulate-btn lang-btn" 
               title="Change Language / மொழியை மாற்ற"
@@ -131,6 +174,15 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Global Background Customizer Modal */}
+      <BackgroundCustomizerModal 
+        isOpen={showBgModal}
+        onClose={() => setShowBgModal(false)}
+        bgConfig={bgConfig}
+        setBgConfig={setBgConfig}
+        lang={lang}
+      />
     </div>
   );
 }
