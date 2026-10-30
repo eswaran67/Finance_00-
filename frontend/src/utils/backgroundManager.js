@@ -212,3 +212,4 @@ export function applyBackgroundToDOM(config) {
     body.style.backgroundImage = 'none';
   }
 }
+
