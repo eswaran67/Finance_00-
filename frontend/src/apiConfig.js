@@ -29,13 +29,24 @@ const getNormalizedApiBase = () => {
     return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
   }
 
-  // In browser: if not running on localhost (e.g. deployed on Render / Vercel),
-  // fallback to the current origin + /api so relative deployments work out of the box
-  if (typeof window !== 'undefined' && window.location && window.location.origin) {
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (!isLocalhost) {
+  // 2. In browser runtime:
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname || '';
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    // A. Local development -> local backend port 5000
+    if (isLocalhost) {
+      return 'http://localhost:5000/api';
+    }
+
+    // B. Monolithic deployment directly on Render -> use same origin
+    if (hostname.includes('finance-000.onrender.com')) {
       return `${window.location.origin}/api`;
     }
+
+    // C. Deployed on Vercel, Netlify, Render Static Site, GitHub Pages, etc.
+    // If VITE_API_URL was not set in build settings, automatically connect to the active Render backend!
+    return 'https://finance-000.onrender.com/api';
   }
 
   return 'http://localhost:5000/api';

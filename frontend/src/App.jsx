@@ -3,7 +3,7 @@ import AuthCard from './components/AuthCard';
 import Dashboard from './components/Dashboard';
 import BackgroundCustomizerModal from './components/BackgroundCustomizerModal';
 import { getSavedBackground, applyBackgroundToDOM } from './utils/backgroundManager';
-import { apiEndpoint } from './apiConfig';
+import { apiEndpoint, API_BASE } from './apiConfig';
 import './App.css';
 
 export default function App() {
@@ -127,10 +127,14 @@ export default function App() {
         <div className="auth-page-container">
           {/* Top subtle status bar */}
           <div className="status-pill-bar">
-            <div className="status-badge">
+            <div className="status-badge" title={`API Target: ${API_BASE}`}>
               <span className={`status-dot ${serverOnline ? 'online' : 'offline'}`} />
               <span>
-                Backend API: {checkingServer ? 'Checking...' : serverOnline ? 'Online (Port 5000)' : 'Offline'}
+                Backend API: {checkingServer 
+                  ? 'Checking...' 
+                  : serverOnline 
+                  ? (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'Online (Local 5000)' : 'Online (Render Cloud)') 
+                  : 'Offline'}
               </span>
             </div>
 
