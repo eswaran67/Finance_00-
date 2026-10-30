@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AuthCard from './components/AuthCard';
 import Dashboard from './components/Dashboard';
 import BackgroundCustomizerModal from './components/BackgroundCustomizerModal';
-import { getSavedBackground, applyBackgroundToDOM } from './utils/backgroundManager';
+import { getSavedBackground, applyBackgroundToDOM, BG_PRESETS } from './utils/backgroundManager';
 import { apiEndpoint, API_BASE } from './apiConfig';
 import './App.css';
 
@@ -36,8 +36,32 @@ export default function App() {
 
   // Apply custom background on mount & config changes
   useEffect(() => {
-    applyBackgroundToDOM(bgConfig);
+    applyBackgroundToDOM(bgConfig, setTheme);
   }, [bgConfig]);
+
+  const getAppRootStyle = () => {
+    if (bgConfig.mode === 'image' && bgConfig.imageUrl) {
+      return { backgroundColor: '#080c14' };
+    }
+    if (bgConfig.mode === 'color') {
+      return { backgroundColor: bgConfig.customColor || '#080c14' };
+    }
+    if (bgConfig.mode === 'preset') {
+      const preset = BG_PRESETS.find(p => p.id === bgConfig.presetId) || BG_PRESETS[0];
+      if (preset.style.background) {
+        return { background: preset.style.background, backgroundAttachment: 'fixed' };
+      }
+      if (preset.style.backgroundColor) {
+        return {
+          backgroundColor: preset.style.backgroundColor,
+          backgroundImage: preset.style.backgroundImage || 'none',
+          backgroundSize: preset.style.backgroundSize || 'auto',
+          backgroundAttachment: 'fixed'
+        };
+      }
+    }
+    return {};
+  };
 
   const toggleTheme = () => {
     setTheme(prev => {
@@ -92,13 +116,13 @@ export default function App() {
   };
 
   return (
-    <div className="app-root" data-theme={theme}>
+    <div className="app-root" data-theme={theme} style={getAppRootStyle()}>
       {/* Dynamic Custom Background Image Layer if image mode is active */}
       {bgConfig.mode === 'image' && bgConfig.imageUrl && (
         <div 
           className="app-custom-image-bg" 
           style={{
-            backgroundImage: `url(${bgConfig.imageUrl})`,
+            backgroundImage: `url("${bgConfig.imageUrl}")`,
             filter: bgConfig.blur ? `blur(${bgConfig.blur}px)` : 'none'
           }}
         >
@@ -186,6 +210,8 @@ export default function App() {
         bgConfig={bgConfig}
         setBgConfig={setBgConfig}
         lang={lang}
+        theme={theme}
+        setTheme={setTheme}
       />
     </div>
   );

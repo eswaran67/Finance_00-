@@ -23,6 +23,8 @@ export default function BackgroundCustomizerModal({
   bgConfig, 
   setBgConfig, 
   lang = 'ta', 
+  theme,
+  setTheme,
   onShowToast 
 }) {
   const t = (key, params) => getTranslation(lang, key, params);
@@ -45,7 +47,12 @@ export default function BackgroundCustomizerModal({
     };
     setBgConfig(updated);
     saveBackgroundConfig(updated);
-    applyBackgroundToDOM(updated);
+    if (preset.theme && typeof setTheme === 'function') {
+      setTheme(preset.theme);
+      document.documentElement.setAttribute('data-theme', preset.theme);
+      localStorage.setItem('finance_theme', preset.theme);
+    }
+    applyBackgroundToDOM(updated, setTheme);
     if (onShowToast) onShowToast(t('bgSavedToast'), 'success');
   };
 
@@ -61,7 +68,7 @@ export default function BackgroundCustomizerModal({
     };
     setBgConfig(updated);
     saveBackgroundConfig(updated);
-    applyBackgroundToDOM(updated);
+    applyBackgroundToDOM(updated, setTheme);
     if (onShowToast) onShowToast(t('bgSavedToast'), 'success');
   };
 
@@ -90,7 +97,12 @@ export default function BackgroundCustomizerModal({
       };
       setBgConfig(updated);
       saveBackgroundConfig(updated);
-      applyBackgroundToDOM(updated);
+      if (typeof setTheme === 'function') {
+        setTheme('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('finance_theme', 'dark');
+      }
+      applyBackgroundToDOM(updated, setTheme);
       if (onShowToast) onShowToast(t('bgSavedToast'), 'success');
     };
     reader.readAsDataURL(file);
@@ -108,7 +120,12 @@ export default function BackgroundCustomizerModal({
     };
     setBgConfig(updated);
     saveBackgroundConfig(updated);
-    applyBackgroundToDOM(updated);
+    if (typeof setTheme === 'function') {
+      setTheme('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('finance_theme', 'dark');
+    }
+    applyBackgroundToDOM(updated, setTheme);
     if (onShowToast) onShowToast(t('bgSavedToast'), 'success');
   };
 
@@ -137,7 +154,12 @@ export default function BackgroundCustomizerModal({
     };
     setBgConfig(defaultCfg);
     saveBackgroundConfig(defaultCfg);
-    applyBackgroundToDOM(defaultCfg);
+    if (typeof setTheme === 'function') {
+      setTheme('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('finance_theme', 'dark');
+    }
+    applyBackgroundToDOM(defaultCfg, setTheme);
     if (onShowToast) onShowToast(t('bgSavedToast'), 'info');
   };
 

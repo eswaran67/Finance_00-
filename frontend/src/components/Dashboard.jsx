@@ -37,6 +37,8 @@ import {
 import { getTranslation } from '../translations';
 import { API_BASE, apiEndpoint } from '../apiConfig';
 import SaveFilesModal from './SaveFilesModal';
+import BackgroundCustomizerModal from './BackgroundCustomizerModal';
+import { getSavedBackground } from '../utils/backgroundManager';
 import { exportDateCollectionsCsv, exportFullLedgerCsv, exportCustomersCsv } from '../utils/fileExport';
 
 export default function Dashboard({ 
@@ -58,6 +60,7 @@ export default function Dashboard({
 
   // Save to My Files modal state
   const [showSaveFilesModal, setShowSaveFilesModal] = useState(false);
+  const [showBgModalLocal, setShowBgModalLocal] = useState(false);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -500,7 +503,7 @@ export default function Dashboard({
   const projectedBalance = Math.max(0, newPayment.balance - enteredAmount);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ background: 'transparent' }}>
       {/* Top Navigation Bar */}
       <header className="dashboard-nav">
         <div className="brand-wrapper">
@@ -662,7 +665,14 @@ export default function Dashboard({
             <span>{user?.email || '1234@gmail.com'}</span>
           </div>
 
-          <button onClick={onOpenBgModal} className="btn-secondary nav-action-btn" title={t('bgCustomizerBtn')}>
+          <button 
+            onClick={() => {
+              if (onOpenBgModal) onOpenBgModal();
+              else setShowBgModalLocal(true);
+            }} 
+            className="btn-secondary nav-action-btn" 
+            title={t('bgCustomizerBtn')}
+          >
             <Palette size={15} />
             <span>{t('bgCustomizerBtn')}</span>
           </button>
@@ -2311,6 +2321,18 @@ export default function Dashboard({
         statsData={statsData}
         user={user}
         lang={lang}
+        onShowToast={showToast}
+      />
+
+      {/* Global Background Customizer Modal */}
+      <BackgroundCustomizerModal 
+        isOpen={showBgModalLocal}
+        onClose={() => setShowBgModalLocal(false)}
+        bgConfig={bgConfig || getSavedBackground()}
+        setBgConfig={setBgConfig}
+        lang={lang}
+        theme={theme}
+        setTheme={toggleTheme ? (newTh) => { if (theme !== newTh) toggleTheme(); } : undefined}
         onShowToast={showToast}
       />
 

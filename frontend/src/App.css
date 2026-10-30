@@ -339,7 +339,7 @@
 
 .dashboard-container {
   min-height: 100vh;
-  background-color: var(--bg-app);
+  background: transparent;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1732,23 +1732,23 @@ tr:hover td {
 /* 8. ULTRA-PREMIUM FINTECH SUITE - UI & UX ENHANCEMENTS            */
 /* ================================================================= */
 
-/* Ambient Mesh Backdrop for Executive Depth */
+/* Ambient Mesh Backdrop for Executive Depth - Transparent so custom themes & wallpapers show through */
 .dashboard-container {
   min-height: 100vh;
-  background-color: var(--bg-app);
-  background-image: 
-    radial-gradient(circle at 12% 14%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 88% 18%, rgba(59, 130, 246, 0.07) 0%, transparent 50%),
-    radial-gradient(circle at 50% 85%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
-  background-attachment: fixed;
+  background-color: transparent !important;
+  background-image: none !important;
   color: var(--text-main);
   position: relative;
 }
 
 [data-theme="light"] .dashboard-container {
-  background-image: 
-    radial-gradient(circle at 10% 12%, rgba(5, 150, 105, 0.05) 0%, transparent 45%),
-    radial-gradient(circle at 90% 16%, rgba(37, 99, 235, 0.04) 0%, transparent 50%);
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.auth-page-container {
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 /* Clickable Interactive Stat Cards with Neon Aura & Spring Lift */
@@ -2103,6 +2103,13 @@ tr:hover td {
 /* ================================================================= */
 /* DYNAMIC CUSTOM BACKGROUND IMAGE & OVERLAY LAYER                   */
 /* ================================================================= */
+
+.app-root {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  transition: background 0.3s ease, background-color 0.3s ease;
+}
 
 .app-custom-image-bg {
   position: fixed;

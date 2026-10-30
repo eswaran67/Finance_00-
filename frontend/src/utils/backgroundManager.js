@@ -13,7 +13,7 @@ export const BG_PRESETS = [
     bgApp: '#080c14',
     previewGradient: 'linear-gradient(135deg, #080c14 0%, #0e1a2f 100%)',
     style: {
-      background: 'radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 45%), radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.07) 0%, transparent 45%), #080c14'
+      background: 'radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 45%), radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.1) 0%, transparent 45%), #080c14'
     }
   },
   {
@@ -74,7 +74,7 @@ export const BG_PRESETS = [
     previewGradient: 'linear-gradient(135deg, #080d1a 0%, #0f172a 100%)',
     style: {
       backgroundColor: '#080d1a',
-      backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px)`,
+      backgroundImage: `linear-gradient(to right, rgba(16, 185, 129, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.08) 1px, transparent 1px)`,
       backgroundSize: '36px 36px'
     }
   },
@@ -87,7 +87,19 @@ export const BG_PRESETS = [
     bgApp: '#070b14',
     previewGradient: 'linear-gradient(135deg, #047857 0%, #1e1b4b 50%, #4338ca 100%)',
     style: {
-      background: 'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.16) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.16) 0%, transparent 40%), radial-gradient(circle at 50% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 45%), #070b14'
+      background: 'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.22) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.2) 0%, transparent 40%), radial-gradient(circle at 50% 80%, rgba(236, 72, 153, 0.16) 0%, transparent 45%), #070b14'
+    }
+  },
+  {
+    id: 'pure-dark',
+    name: 'Pitch Black OLED',
+    nameTa: 'முழு கருப்பு (Pitch Black)',
+    theme: 'dark',
+    type: 'preset',
+    bgApp: '#000000',
+    previewGradient: 'linear-gradient(135deg, #000000 0%, #111111 100%)',
+    style: {
+      background: '#000000'
     }
   },
   {
@@ -99,7 +111,7 @@ export const BG_PRESETS = [
     bgApp: '#f4f6fa',
     previewGradient: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)',
     style: {
-      background: 'radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.05) 0%, transparent 40%), radial-gradient(circle at 90% 20%, rgba(14, 165, 233, 0.05) 0%, transparent 40%), #f4f6fa'
+      background: 'radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 40%), #f4f6fa'
     }
   },
   {
@@ -111,7 +123,7 @@ export const BG_PRESETS = [
     bgApp: '#faf7f2',
     previewGradient: 'linear-gradient(135deg, #faf7f2 0%, #fde68a 100%)',
     style: {
-      background: 'radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.06) 0%, transparent 40%), #faf7f2'
+      background: 'radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.09) 0%, transparent 40%), #faf7f2'
     }
   }
 ];
@@ -176,7 +188,11 @@ export function saveBackgroundConfig(config) {
   }
 }
 
-export function applyBackgroundToDOM(config) {
+/**
+ * Applies the background configuration to document body and root styles.
+ * Accepts optional setTheme callback to synchronize React state.
+ */
+export function applyBackgroundToDOM(config, setTheme) {
   if (!config) return;
 
   const root = document.documentElement;
@@ -186,7 +202,7 @@ export function applyBackgroundToDOM(config) {
     const preset = BG_PRESETS.find(p => p.id === config.presetId) || BG_PRESETS[0];
     root.style.setProperty('--bg-app', preset.bgApp);
     
-    // Apply preset inline styling or class
+    // Apply preset styling directly to body
     if (preset.style.background) {
       body.style.background = preset.style.background;
     } else if (preset.style.backgroundColor) {
@@ -196,10 +212,13 @@ export function applyBackgroundToDOM(config) {
     }
     body.style.backgroundAttachment = 'fixed';
     
-    // Set theme accordingly
+    // Synchronize theme with React state and HTML attribute
     if (preset.theme) {
       root.setAttribute('data-theme', preset.theme);
       localStorage.setItem('finance_theme', preset.theme);
+      if (typeof setTheme === 'function') {
+        setTheme(preset.theme);
+      }
     }
   } else if (config.mode === 'color') {
     const color = config.customColor || '#080c14';
@@ -207,9 +226,14 @@ export function applyBackgroundToDOM(config) {
     body.style.background = color;
     body.style.backgroundImage = 'none';
   } else if (config.mode === 'image') {
-    // Handled by custom bg overlay component for smooth blur/darkness
+    // For custom images, body is dark background so the fixed image layer shines through
+    root.style.setProperty('--bg-app', 'transparent');
     body.style.backgroundColor = '#080c14';
     body.style.backgroundImage = 'none';
+    if (typeof setTheme === 'function') {
+      setTheme('dark');
+      root.setAttribute('data-theme', 'dark');
+      localStorage.setItem('finance_theme', 'dark');
+    }
   }
 }
-
