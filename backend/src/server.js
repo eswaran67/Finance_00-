@@ -52,13 +52,43 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check handler
-const healthHandler = (req, res) => {
+// Health check handler with live database status reporting
+const healthHandler = async (req, res) => {
+  let dbConnected = true;
+  let dbError = null;
+  let userCount = 0;
+  let customerCount = 0;
+  let loanCount = 0;
+
+  try {
+    const uRow = await db.get('SELECT COUNT(*) as count FROM users');
+    userCount = uRow ? Number(uRow.count) : 0;
+    const cRow = await db.get('SELECT COUNT(*) as count FROM customers');
+    customerCount = cRow ? Number(cRow.count) : 0;
+    const lRow = await db.get('SELECT COUNT(*) as count FROM loans');
+    loanCount = lRow ? Number(lRow.count) : 0;
+  } catch (err) {
+    dbConnected = false;
+    dbError = err.message;
+  }
+
   res.json({
     status: 'online',
     app: 'Weekly Finance API',
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: {
+      connected: dbConnected,
+      isPermanentCloud: Boolean(db.isTurso),
+      provider: db.isTurso ? 'Turso Cloud SQLite (Permanent Lifetime Free)' : 'Local SQLite File',
+      storageLocation: db.isTurso ? 'Turso Cloud Network' : 'Server Local Disk (thunai_ledger.db)',
+      records: {
+        users: userCount,
+        customers: customerCount,
+        loans: loanCount
+      },
+      error: dbError
+    }
   });
 };
 

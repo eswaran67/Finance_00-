@@ -217,7 +217,9 @@ router.get('/stats', async (req, res) => {
         thisYearCount: thisYearRow.count,
         currentMonthName: new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }),
         currentYear: currentYear,
-        todayDate: today
+        todayDate: today,
+        databaseProvider: db.isTurso ? 'Turso Cloud SQLite' : 'Local SQLite',
+        isPermanentCloud: Boolean(db.isTurso)
       },
       periodStats: {
         today: todayCollectedRow,

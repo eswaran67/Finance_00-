@@ -16,6 +16,7 @@ const monthResult = db.prepare(`
   WHERE strftime('%Y-%m', collection_date) = ?
 `).get(currentMonth);
 
+
 console.log('This Month Collections:', monthResult);
 
 // Test weekly collection (current week starting Monday)

@@ -665,6 +665,15 @@ export default function Dashboard({
             <span>{user?.email || '1234@gmail.com'}</span>
           </div>
 
+          <div 
+            className="user-badge db-pill" 
+            title={summary.isPermanentCloud ? "Permanent Turso Cloud Database Active" : "Local SQLite Database (thunai_ledger.db)"}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Database size={13} style={{ color: summary.isPermanentCloud ? 'var(--primary-emerald)' : '#38bdf8' }} />
+            <span>{summary.isPermanentCloud ? 'Turso Cloud' : 'Local DB'}</span>
+          </div>
+
           <button 
             onClick={() => {
               if (onOpenBgModal) onOpenBgModal();

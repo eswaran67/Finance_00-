@@ -10,6 +10,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [serverOnline, setServerOnline] = useState(false);
   const [checkingServer, setCheckingServer] = useState(true);
+  const [dbInfo, setDbInfo] = useState(null);
   
   // Theme state: defaults to modern luxury dark theme, with instant toggle
   const [theme, setTheme] = useState(() => {
@@ -79,7 +80,11 @@ export default function App() {
     try {
       const res = await fetch(apiEndpoint('/health'));
       if (res.ok) {
+        const data = await res.json();
         setServerOnline(true);
+        if (data && data.database) {
+          setDbInfo(data.database);
+        }
       } else {
         setServerOnline(false);
       }
@@ -161,6 +166,18 @@ export default function App() {
                   : 'Offline'}
               </span>
             </div>
+
+            {serverOnline && dbInfo && (
+              <div 
+                className="status-badge" 
+                title={`${dbInfo.provider} (${dbInfo.storageLocation})`}
+                style={{ borderLeft: `3px solid ${dbInfo.isPermanentCloud ? 'var(--primary-emerald)' : '#38bdf8'}` }}
+              >
+                <span>
+                  {dbInfo.isPermanentCloud ? '🟢 Permanent DB (Turso)' : '💾 Local DB (SQLite)'}
+                </span>
+              </div>
+            )}
 
             <button onClick={checkHealth} className="simulate-btn" title="Ping backend API">
               Check Connection
