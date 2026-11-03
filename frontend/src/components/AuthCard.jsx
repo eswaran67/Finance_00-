@@ -5,17 +5,16 @@ import { getTranslation } from '../translations';
 import { apiEndpoint, safeFetchJson } from '../apiConfig';
 
 export default function AuthCard({ onAuthSuccess, serverOnline, theme, toggleTheme, lang, toggleLang }) {
-  // Mode: 'register' (matching screenshot "Create account") or 'login' ("Sign in")
-  const [isRegisterMode, setIsRegisterMode] = useState(true);
+  // Mode: 'login' ("Sign in") by default, or 'register' ("Create account")
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
   
-  // Default values matching the user's screenshot: 1234@gmail.com
+  // Default credentials for easy access
   const [email, setEmail] = useState('1234@gmail.com');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   
-  // Notice alert matching screenshot ("Failed to fetch")
-  // Initialized to 'Failed to fetch' by default to replicate the exact initial screenshot view!
-  const [alertMessage, setAlertMessage] = useState('Failed to fetch');
+  // Notice alert - starts empty so no false "Failed to fetch" banner appears on initial load
+  const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('warning'); // 'warning' | 'success'
   const [isLoading, setIsLoading] = useState(false);
 
