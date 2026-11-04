@@ -32,7 +32,8 @@ import {
   Palette,
   HardDriveDownload,
   Download,
-  FileText
+  FileText,
+  Database
 } from 'lucide-react';
 import { getTranslation } from '../translations';
 import { API_BASE, apiEndpoint } from '../apiConfig';
