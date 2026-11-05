@@ -512,200 +512,234 @@ export default function Dashboard({
             <WalletIcon className="wallet-svg" containerBg="var(--primary-emerald-dark)" />
           </div>
           <div className="brand-text">
-            <span>{t('brandSubtitle')}</span>
+            <div className="brand-sub-row">
+              <span className="brand-sub-text">{t('brandSubtitle')}</span>
+              <div 
+                className={`db-badge-pill ${summary.isPermanentCloud ? 'db-cloud' : 'db-local'}`}
+                title={summary.isPermanentCloud ? "Permanent Turso Cloud Database Active" : "Local SQLite Database (thunai_ledger.db)"}
+              >
+                <span className="db-indicator-dot"></span>
+                <Database size={11} />
+                <span>{summary.isPermanentCloud ? 'Turso Cloud' : 'Local DB'}</span>
+              </div>
+            </div>
             <h1>{t('brandTitle')}</h1>
           </div>
         </div>
 
         <div className="nav-actions">
-          {/* Quick Language Switcher Button */}
-          <button 
-            type="button"
-            onClick={toggleLang} 
-            className="lang-toggle-btn"
-            title={lang === 'ta' ? 'Switch to English' : 'தமிழுக்கு மாறவும்'}
-          >
-            <Globe size={15} />
-            <span className="lang-toggle-label">{t('langName')}</span>
-          </button>
-
-          {/* Quick Theme Switcher Button */}
-          <button 
-            type="button"
-            onClick={toggleTheme} 
-            className="theme-toggle-btn"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            <span className="theme-toggle-label">{theme === 'dark' ? t('lightMode') : t('darkMode')}</span>
-          </button>
-
-          {/* Notification Bell with Badge & Dropdown */}
-          <div className="notification-wrapper">
+          {/* Group 1: Tools (Save Files, Route Sheet, Background, Refresh) */}
+          <div className="nav-group nav-group-tools">
             <button 
-              className="notification-btn" 
-              onClick={() => setShowNotifications(!showNotifications)}
-              title={t('duesTitle')}
+              type="button"
+              onClick={() => setShowSaveFilesModal(true)} 
+              className="nav-btn nav-btn-highlight save-files-nav-btn" 
+              title={t('saveToFilesBtn')}
             >
-              <Bell size={18} />
-              {activeNotificationCount > 0 && (
-                <span className="notification-badge">
-                  {activeNotificationCount}
-                </span>
-              )}
+              <HardDriveDownload size={14} />
+              <span className="nav-btn-label">{t('saveToFilesBtn')}</span>
             </button>
 
-            {/* Notification Dropdown Panel */}
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <div className="notification-header-title">
-                    <Bell size={16} color="var(--primary-emerald)" />
-                    <h4>{t('duesTitle')}</h4>
-                    {activeNotificationCount > 0 && (
-                      <span>{activeNotificationCount} {t('duesCount')}</span>
+            <button 
+              type="button"
+              onClick={() => setShowRouteSheetModal(true)} 
+              className="nav-btn nav-btn-tool" 
+              title={t('routeSheetBtn')}
+            >
+              <Printer size={14} />
+              <span className="nav-btn-label">{t('routeSheetBtn')}</span>
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => {
+                if (onOpenBgModal) onOpenBgModal();
+                else setShowBgModalLocal(true);
+              }} 
+              className="nav-btn nav-btn-tool" 
+              title={t('bgCustomizerBtn')}
+            >
+              <Palette size={14} />
+              <span className="nav-btn-label">{t('bgCustomizerBtn')}</span>
+            </button>
+
+            <button 
+              type="button"
+              onClick={fetchDashboardStats} 
+              className={`nav-btn-icon-only nav-btn-tool ${loading ? 'nav-spin' : ''}`}
+              title={t('refreshBtn')}
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+
+          <div className="nav-divider" />
+
+          {/* Group 2: Preferences & Alerts (Bell, Lang, Theme) */}
+          <div className="nav-group nav-group-prefs">
+            {/* Notification Bell with Badge & Dropdown */}
+            <div className="notification-wrapper">
+              <button 
+                type="button"
+                className="nav-btn-icon-only notification-btn" 
+                onClick={() => setShowNotifications(!showNotifications)}
+                title={t('duesTitle')}
+              >
+                <Bell size={16} />
+                {activeNotificationCount > 0 && (
+                  <span className="notification-badge">
+                    {activeNotificationCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Panel */}
+              {showNotifications && (
+                <div className="notification-dropdown">
+                  <div className="notification-header">
+                    <div className="notification-header-title">
+                      <Bell size={16} color="var(--primary-emerald)" />
+                      <h4>{t('duesTitle')}</h4>
+                      {activeNotificationCount > 0 && (
+                        <span>{activeNotificationCount} {t('duesCount')}</span>
+                      )}
+                    </div>
+
+                    {activeNotificationCount > 0 ? (
+                      <button 
+                        onClick={handleClearAllNotifications}
+                        className="btn-clear-all"
+                        title={t('clearAll')}
+                      >
+                        <CheckCheck size={13} />
+                        {t('clearAll')}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleRestoreNotifications}
+                        className="btn-clear-all"
+                        style={{ color: 'var(--primary-emerald)', borderColor: 'var(--border-subtle)' }}
+                        title={t('checkAgain')}
+                      >
+                        <RefreshCw size={12} />
+                        {t('checkAgain')}
+                      </button>
                     )}
                   </div>
 
-                  {activeNotificationCount > 0 ? (
-                    <button 
-                      onClick={handleClearAllNotifications}
-                      className="btn-clear-all"
-                      title={t('clearAll')}
-                    >
-                      <CheckCheck size={13} />
-                      {t('clearAll')}
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={handleRestoreNotifications}
-                      className="btn-clear-all"
-                      style={{ color: 'var(--primary-emerald)', borderColor: 'var(--border-subtle)' }}
-                      title={t('checkAgain')}
-                    >
-                      <RefreshCw size={12} />
-                      {t('checkAgain')}
-                    </button>
-                  )}
-                </div>
+                  <div className="notification-list">
+                    {activeTodayDues.map((due) => {
+                      const cleanPhone = due.customer_phone ? due.customer_phone.replace(/[^0-9]/g, '') : '';
+                      return (
+                        <div key={due.loan_id} className="notification-card">
+                          <div className="notification-card-top">
+                            <div>
+                              <div className="notification-card-name">{due.customer_name}</div>
+                              <div className="notification-card-meta">
+                                <MapPin size={11} /> {due.customer_area}
+                                {due.customer_phone && ` • 📞 ${due.customer_phone}`}
+                              </div>
+                            </div>
 
-                <div className="notification-list">
-                  {activeTodayDues.map((due) => {
-                    const cleanPhone = due.customer_phone ? due.customer_phone.replace(/[^0-9]/g, '') : '';
-                    return (
-                      <div key={due.loan_id} className="notification-card">
-                        <div className="notification-card-top">
-                          <div>
-                            <div className="notification-card-name">{due.customer_name}</div>
-                            <div className="notification-card-meta">
-                              <MapPin size={11} /> {due.customer_area}
-                              {due.customer_phone && ` • 📞 ${due.customer_phone}`}
+                            <div className="notification-card-amount">
+                              <div className="notification-due-value">
+                                {formatCurrency(due.weekly_installment)}
+                              </div>
+                              <div className="notification-bal-text">
+                                {t('balance')}: {formatCurrency(due.balance_amount)}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="notification-card-amount">
-                            <div className="notification-due-value">
-                              {formatCurrency(due.weekly_installment)}
-                            </div>
-                            <div className="notification-bal-text">
-                              {t('balance')}: {formatCurrency(due.balance_amount)}
-                            </div>
-                          </div>
-                        </div>
+                          <div className="notification-card-actions">
+                            {cleanPhone && (
+                              <a 
+                                href={`https://wa.me/91${cleanPhone.slice(-10)}?text=${encodeURIComponent(
+                                  lang === 'ta'
+                                    ? `வணக்கம் ${due.customer_name}, Weekly Finance: உங்கள் வாராந்திர தவணை ${formatCurrency(due.weekly_installment)} இன்று செலுத்த வேண்டியுள்ளது. (மீதி பாக்கி: ${formatCurrency(due.balance_amount)}). நன்றி!`
+                                    : `Hello ${due.customer_name}, Weekly Finance: Your weekly installment of ${formatCurrency(due.weekly_installment)} is due today. (Pending Balance: ${formatCurrency(due.balance_amount)}). Thank you!`
+                                )}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-whatsapp"
+                                style={{ padding: '4px 8px', fontSize: '11.5px' }}
+                                title={t('whatsappReminder')}
+                              >
+                                <MessageCircle size={12} /> {t('whatsappReminder')}
+                              </a>
+                            )}
 
-                        <div className="notification-card-actions">
-                          {cleanPhone && (
-                            <a 
-                              href={`https://wa.me/91${cleanPhone.slice(-10)}?text=${encodeURIComponent(
-                                lang === 'ta'
-                                  ? `வணக்கம் ${due.customer_name}, Weekly Finance: உங்கள் வாராந்திர தவணை ${formatCurrency(due.weekly_installment)} இன்று செலுத்த வேண்டியுள்ளது. (மீதி பாக்கி: ${formatCurrency(due.balance_amount)}). நன்றி!`
-                                  : `Hello ${due.customer_name}, Weekly Finance: Your weekly installment of ${formatCurrency(due.weekly_installment)} is due today. (Pending Balance: ${formatCurrency(due.balance_amount)}). Thank you!`
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-whatsapp"
-                              style={{ padding: '4px 8px', fontSize: '11.5px' }}
-                              title={t('whatsappReminder')}
+                            <button 
+                              onClick={() => handleDismissSingleNotification(due.loan_id)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
+                              title={t('dismiss')}
                             >
-                              <MessageCircle size={12} /> {t('whatsappReminder')}
-                            </a>
-                          )}
-
-                          <button 
-                            onClick={() => handleDismissSingleNotification(due.loan_id)}
-                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }}
-                            title={t('dismiss')}
-                          >
-                            <X size={15} />
-                          </button>
+                              <X size={15} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {activeNotificationCount === 0 && (
-                    <div className="notification-empty">
-                      <div className="notification-empty-icon">
-                        <CheckCircle2 size={24} />
+                    {activeNotificationCount === 0 && (
+                      <div className="notification-empty">
+                        <div className="notification-empty-icon">
+                          <CheckCircle2 size={24} />
+                        </div>
+                        <strong style={{ display: 'block', color: 'var(--text-main)', marginBottom: '4px' }}>
+                          {t('allCaughtUp')}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '12.5px' }}>
+                          {t('allCaughtUpSub')}
+                        </p>
                       </div>
-                      <strong style={{ display: 'block', color: 'var(--text-main)', marginBottom: '4px' }}>
-                        {t('allCaughtUp')}
-                      </strong>
-                      <p style={{ margin: 0, fontSize: '12.5px' }}>
-                        {t('allCaughtUpSub')}
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Quick Language Switcher Button */}
+            <button 
+              type="button"
+              onClick={toggleLang} 
+              className="nav-btn lang-toggle-btn"
+              title={lang === 'ta' ? 'Switch to English' : 'தமிழுக்கு மாறவும்'}
+            >
+              <Globe size={13} />
+              <span className="lang-toggle-label">{t('langName')}</span>
+            </button>
+
+            {/* Quick Theme Switcher Button */}
+            <button 
+              type="button"
+              onClick={toggleTheme} 
+              className="nav-btn-icon-only theme-toggle-btn"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            >
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
           </div>
 
-          <div className="user-badge">
-            <span className="status-dot online"></span>
-            <span>{user?.email || '1234@gmail.com'}</span>
+          <div className="nav-divider" />
+
+          {/* Group 3: User Profile & Session */}
+          <div className="nav-user-cluster">
+            <div className="user-badge-compact" title={user?.email || '1234@gmail.com'}>
+              <span className="status-dot online"></span>
+              <span className="user-email-text">{user?.email || '1234@gmail.com'}</span>
+            </div>
+
+            <button 
+              type="button"
+              onClick={onLogout} 
+              className="logout-btn-pill" 
+              title={t('signOutBtn')}
+            >
+              <LogOut size={13} />
+              <span className="logout-label">{t('signOutBtn')}</span>
+            </button>
           </div>
-
-          <div 
-            className="user-badge db-pill" 
-            title={summary.isPermanentCloud ? "Permanent Turso Cloud Database Active" : "Local SQLite Database (thunai_ledger.db)"}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Database size={13} style={{ color: summary.isPermanentCloud ? 'var(--primary-emerald)' : '#38bdf8' }} />
-            <span>{summary.isPermanentCloud ? 'Turso Cloud' : 'Local DB'}</span>
-          </div>
-
-          <button 
-            onClick={() => {
-              if (onOpenBgModal) onOpenBgModal();
-              else setShowBgModalLocal(true);
-            }} 
-            className="btn-secondary nav-action-btn" 
-            title={t('bgCustomizerBtn')}
-          >
-            <Palette size={15} />
-            <span>{t('bgCustomizerBtn')}</span>
-          </button>
-
-          <button onClick={() => setShowSaveFilesModal(true)} className="btn-secondary nav-action-btn save-files-nav-btn" title={t('saveToFilesBtn')}>
-            <HardDriveDownload size={15} />
-            <span>{t('saveToFilesBtn')}</span>
-          </button>
-
-          <button onClick={() => setShowRouteSheetModal(true)} className="btn-secondary" title={t('routeSheetBtn')}>
-            <Printer size={15} />
-            {t('routeSheetBtn')}
-          </button>
-
-          <button onClick={fetchDashboardStats} className="btn-secondary" title={t('refreshBtn')}>
-            <RefreshCw size={15} />
-            {t('refreshBtn')}
-          </button>
-
-          <button onClick={onLogout} className="logout-btn">
-            <LogOut size={15} />
-            {t('signOutBtn')}
-          </button>
         </div>
       </header>
 
@@ -762,6 +796,9 @@ export default function Dashboard({
             </button>
             <button onClick={() => setShowAddLoan(true)} className="btn-secondary">
               <Plus size={16} /> {t('disburseLoanBtn')}
+            </button>
+            <button onClick={() => setShowRouteSheetModal(true)} className="btn-secondary hero-route-btn" title={t('routeSheetBtn')}>
+              <Printer size={16} /> {t('routeSheetBtn')}
             </button>
             <button 
               onClick={() => {
