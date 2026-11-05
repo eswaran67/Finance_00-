@@ -130,6 +130,79 @@ export async function initDatabase() {
     );
   `);
 
+  // 5. Automated Reminder Logs Table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS reminder_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      loan_id INTEGER,
+      customer_id INTEGER,
+      customer_name TEXT,
+      phone TEXT,
+      channel TEXT DEFAULT 'whatsapp', -- 'whatsapp', 'sms'
+      message_type TEXT DEFAULT 'due_reminder', -- 'due_reminder', 'overdue_alert', 'payment_receipt'
+      message_body TEXT NOT NULL,
+      status TEXT DEFAULT 'sent', -- 'sent', 'failed', 'delivered'
+      sent_by TEXT DEFAULT 'automatic_cron', -- 'automatic_cron', 'manual_single', 'manual_blast'
+      sent_at TEXT DEFAULT (datetime('now')),
+      response_info TEXT,
+      FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE SET NULL,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+    );
+  `);
+
+  // 6. Notification Settings Table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      auto_send_enabled INTEGER DEFAULT 1,
+      send_time TEXT DEFAULT '09:00',
+      send_channel TEXT DEFAULT 'whatsapp', -- 'whatsapp', 'sms', 'both'
+      provider TEXT DEFAULT 'whatsapp_direct', -- 'whatsapp_direct', 'ultramsg', 'twilio', 'webhook', 'mock'
+      finance_name TEXT DEFAULT 'Weekly Finance',
+      api_key TEXT,
+      api_url TEXT,
+      sender_phone TEXT,
+      tamil_template TEXT,
+      english_template TEXT,
+      last_cron_run TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Safe schema migrations: add missing columns if they do not exist
+  const safeAddColumn = async (table, colDef) => {
+    try {
+      await client.execute(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+    } catch {
+      // Column already exists, safe to continue
+    }
+  };
+
+  // Customers table enhancements
+  await safeAddColumn('customers', 'whatsapp_number TEXT');
+  await safeAddColumn('customers', "preferred_lang TEXT DEFAULT 'ta'");
+  await safeAddColumn('customers', 'notification_enabled INTEGER DEFAULT 1');
+  await safeAddColumn('customers', 'id_proof_number TEXT');
+
+  // Loans table enhancements
+  await safeAddColumn('loans', "collection_day TEXT DEFAULT 'Monday'");
+  await safeAddColumn('loans', 'next_due_date TEXT');
+  await safeAddColumn('loans', 'last_reminder_sent TEXT');
+  await safeAddColumn('loans', "reminder_status TEXT DEFAULT 'pending'");
+
+  // Initialize default notification settings if empty
+  const settingsCheck = await db.get('SELECT COUNT(*) as count FROM notification_settings');
+  if (!settingsCheck || Number(settingsCheck.count) === 0) {
+    const defaultTaTemplate = 'வணக்கம் {customer_name}, {finance_name}-லிருந்து நினைவூட்டல்: உங்கள் வாரத் தவணை ₹{installment} இன்று ({due_date}) செலுத்த வேண்டியுள்ளது. (மீதி பாக்கி: ₹{balance}). நன்றி!';
+    const defaultEnTemplate = 'Hello {customer_name}, Reminder from {finance_name}: Your weekly installment of ₹{installment} is due today ({due_date}). (Pending Balance: ₹{balance}). Thank you!';
+    
+    await db.run(`
+      INSERT INTO notification_settings (
+        auto_send_enabled, send_time, send_channel, provider, finance_name, tamil_template, english_template
+      ) VALUES (1, '09:00', 'whatsapp', 'whatsapp_direct', 'Weekly Finance', ?, ?)
+    `, defaultTaTemplate, defaultEnTemplate);
+  }
+
   // Seed default user and demo data if not exists
   await seedInitialData();
 }

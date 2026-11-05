@@ -124,6 +124,10 @@ router.get('/stats', async (req, res) => {
         cust.id,
         cust.name,
         cust.phone,
+        COALESCE(cust.whatsapp_number, cust.phone) as whatsapp_number,
+        COALESCE(cust.preferred_lang, 'ta') as preferred_lang,
+        COALESCE(cust.notification_enabled, 1) as notification_enabled,
+        cust.id_proof_number,
         cust.area,
         cust.address,
         cust.created_at,
@@ -153,9 +157,16 @@ router.get('/stats', async (req, res) => {
         (l.total_amount - l.amount_paid) as balance_amount,
         l.status,
         l.start_date,
+        COALESCE(l.collection_day, 'Monday') as collection_day,
+        l.next_due_date,
+        l.last_reminder_sent,
+        COALESCE(l.reminder_status, 'pending') as reminder_status,
         l.created_at,
         c.name as customer_name,
         c.phone as customer_phone,
+        COALESCE(c.whatsapp_number, c.phone) as whatsapp_number,
+        COALESCE(c.preferred_lang, 'ta') as preferred_lang,
+        COALESCE(c.notification_enabled, 1) as notification_enabled,
         c.area as customer_area
       FROM loans l
       JOIN customers c ON l.customer_id = c.id
@@ -177,8 +188,15 @@ router.get('/stats', async (req, res) => {
         l.weeks_paid,
         l.tenure_weeks,
         l.start_date,
+        COALESCE(l.collection_day, 'Monday') as collection_day,
+        l.next_due_date,
+        l.last_reminder_sent,
+        COALESCE(l.reminder_status, 'pending') as reminder_status,
         c.name as customer_name,
         c.phone as customer_phone,
+        COALESCE(c.whatsapp_number, c.phone) as whatsapp_number,
+        COALESCE(c.preferred_lang, 'ta') as preferred_lang,
+        COALESCE(c.notification_enabled, 1) as notification_enabled,
         c.area as customer_area,
         (SELECT COUNT(*) FROM collections WHERE loan_id = l.id AND collection_date = ?) as paid_today_count
       FROM loans l
@@ -382,14 +400,36 @@ router.get('/customers/:id/statement', async (req, res) => {
 // POST /api/dashboard/customers - Create new customer
 router.post('/customers', async (req, res) => {
   try {
-    const { name, phone, area, address } = req.body;
+    const { 
+      name, 
+      phone, 
+      area, 
+      address, 
+      whatsapp_number, 
+      preferred_lang = 'ta', 
+      notification_enabled = 1, 
+      id_proof_number = '' 
+    } = req.body;
+
     if (!name || !phone || !area) {
       return res.status(400).json({ message: 'Name, phone, and area are required.' });
     }
 
+    const waPhone = (whatsapp_number || phone).trim();
+
     const result = await db.run(
-      'INSERT INTO customers (user_id, name, phone, area, address) VALUES (?, ?, ?, ?, ?)',
-      req.user.id, name.trim(), phone.trim(), area.trim(), address ? address.trim() : ''
+      `INSERT INTO customers (
+        user_id, name, phone, whatsapp_number, preferred_lang, notification_enabled, id_proof_number, area, address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      req.user.id, 
+      name.trim(), 
+      phone.trim(), 
+      waPhone, 
+      preferred_lang === 'en' ? 'en' : 'ta',
+      Number(notification_enabled) === 0 ? 0 : 1,
+      id_proof_number ? id_proof_number.trim() : '',
+      area.trim(), 
+      address ? address.trim() : ''
     );
 
     res.status(201).json({
@@ -399,6 +439,52 @@ router.post('/customers', async (req, res) => {
   } catch (error) {
     console.error('Add customer error:', error);
     res.status(500).json({ message: 'Failed to add customer.' });
+  }
+});
+
+// PUT /api/dashboard/customers/:id - Update customer details
+router.put('/customers/:id', async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const { 
+      name, 
+      phone, 
+      whatsapp_number, 
+      area, 
+      address, 
+      preferred_lang, 
+      notification_enabled, 
+      id_proof_number 
+    } = req.body;
+
+    await db.run(`
+      UPDATE customers 
+      SET 
+        name = COALESCE(?, name),
+        phone = COALESCE(?, phone),
+        whatsapp_number = COALESCE(?, whatsapp_number),
+        area = COALESCE(?, area),
+        address = COALESCE(?, address),
+        preferred_lang = COALESCE(?, preferred_lang),
+        notification_enabled = COALESCE(?, notification_enabled),
+        id_proof_number = COALESCE(?, id_proof_number)
+      WHERE id = ?
+    `, 
+      name ? name.trim() : null,
+      phone ? phone.trim() : null,
+      whatsapp_number ? whatsapp_number.trim() : null,
+      area ? area.trim() : null,
+      address !== undefined ? address.trim() : null,
+      preferred_lang || null,
+      notification_enabled !== undefined ? (Number(notification_enabled) ? 1 : 0) : null,
+      id_proof_number !== undefined ? id_proof_number.trim() : null,
+      customerId
+    );
+
+    res.json({ message: 'Customer updated successfully.' });
+  } catch (error) {
+    console.error('Update customer error:', error);
+    res.status(500).json({ message: 'Failed to update customer.' });
   }
 });
 
@@ -427,7 +513,16 @@ router.delete('/customers/:id', async (req, res) => {
 // POST /api/dashboard/loans - Create new weekly loan
 router.post('/loans', async (req, res) => {
   try {
-    const { customer_id, principal, interest_rate = 10, tenure_weeks = 10, start_date } = req.body;
+    const { 
+      customer_id, 
+      principal, 
+      interest_rate = 10, 
+      tenure_weeks = 10, 
+      start_date,
+      collection_day = 'Monday',
+      next_due_date
+    } = req.body;
+
     if (!customer_id || !principal) {
       return res.status(400).json({ message: 'Customer ID and principal amount are required.' });
     }
@@ -439,10 +534,20 @@ router.post('/loans', async (req, res) => {
     const weeklyInstallment = Math.round(totalAmount / weeks);
     const sDate = start_date || new Date().toISOString().split('T')[0];
 
+    // Compute first due date (7 days after start_date if not specified)
+    let firstDue = next_due_date;
+    if (!firstDue) {
+      const d = new Date(sDate);
+      d.setDate(d.getDate() + 7);
+      firstDue = d.toISOString().split('T')[0];
+    }
+
     const result = await db.run(
-      `INSERT INTO loans (customer_id, principal, interest_rate, total_amount, weekly_installment, tenure_weeks, weeks_paid, amount_paid, status, start_date)
-       VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'active', ?)`,
-      customer_id, princ, rate, totalAmount, weeklyInstallment, weeks, sDate
+      `INSERT INTO loans (
+        customer_id, principal, interest_rate, total_amount, weekly_installment,
+        tenure_weeks, weeks_paid, amount_paid, status, start_date, collection_day, next_due_date
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'active', ?, ?, ?)`,
+      customer_id, princ, rate, totalAmount, weeklyInstallment, weeks, sDate, collection_day, firstDue
     );
 
     res.status(201).json({
@@ -450,7 +555,9 @@ router.post('/loans', async (req, res) => {
       loan_id: Number(result.lastInsertRowid),
       totalAmount,
       weeklyInstallment,
-      start_date: sDate
+      start_date: sDate,
+      collection_day,
+      next_due_date: firstDue
     });
   } catch (error) {
     console.error('Create loan error:', error);

@@ -33,12 +33,14 @@ import {
   HardDriveDownload,
   Download,
   FileText,
-  Database
+  Database,
+  Send
 } from 'lucide-react';
 import { getTranslation } from '../translations';
 import { API_BASE, apiEndpoint } from '../apiConfig';
 import SaveFilesModal from './SaveFilesModal';
 import BackgroundCustomizerModal from './BackgroundCustomizerModal';
+import AutoRemindersModal from './AutoRemindersModal';
 import { getSavedBackground } from '../utils/backgroundManager';
 import { exportDateCollectionsCsv, exportFullLedgerCsv, exportCustomersCsv } from '../utils/fileExport';
 
@@ -84,6 +86,7 @@ export default function Dashboard({
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [showRouteSheetModal, setShowRouteSheetModal] = useState(false);
+  const [showRemindersModal, setShowRemindersModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Customer Statement Data
@@ -91,13 +94,24 @@ export default function Dashboard({
   const [loadingStatement, setLoadingStatement] = useState(false);
 
   // Forms
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', area: '', address: '' });
+  const [newCustomer, setNewCustomer] = useState({ 
+    name: '', 
+    phone: '', 
+    whatsapp_number: '',
+    preferred_lang: 'ta',
+    notification_enabled: 1,
+    id_proof_number: '',
+    area: '', 
+    address: '' 
+  });
   const [newLoan, setNewLoan] = useState({ 
     customer_id: '', 
     principal: 10000, 
     interest_rate: 10, 
     tenure_weeks: 10, 
-    start_date: todayDateStr 
+    start_date: todayDateStr,
+    collection_day: 'Monday',
+    next_due_date: ''
   });
   const [newPayment, setNewPayment] = useState({ 
     loan_id: '', 
@@ -309,7 +323,16 @@ export default function Dashboard({
       });
       if (res.ok) {
         setShowAddCustomer(false);
-        setNewCustomer({ name: '', phone: '', area: '', address: '' });
+        setNewCustomer({ 
+          name: '', 
+          phone: '', 
+          whatsapp_number: '', 
+          preferred_lang: 'ta', 
+          notification_enabled: 1, 
+          id_proof_number: '', 
+          area: '', 
+          address: '' 
+        });
         fetchDashboardStats();
         showToast(lang === 'ta' ? 'புதிய வாடிக்கையாளர் வெற்றிகரமாக சேர்க்கப்பட்டார்! 👤' : 'Customer added successfully! 👤', 'success');
       }
@@ -337,7 +360,9 @@ export default function Dashboard({
           principal: 10000, 
           interest_rate: 10, 
           tenure_weeks: 10, 
-          start_date: todayDateStr 
+          start_date: todayDateStr,
+          collection_day: 'Monday',
+          next_due_date: ''
         });
         fetchDashboardStats();
         showToast(lang === 'ta' ? 'கடன் வெற்றிகரமாக வழங்கப்பட்டது! 💼' : 'Loan disbursed successfully! 💼', 'success');
@@ -565,6 +590,16 @@ export default function Dashboard({
 
             <button 
               type="button"
+              onClick={() => setShowRemindersModal(true)} 
+              className="nav-btn nav-btn-tool" 
+              title={t('autoRemindersNavBtn')}
+            >
+              <Send size={14} />
+              <span className="nav-btn-label">{t('autoRemindersNavBtn')}</span>
+            </button>
+
+            <button 
+              type="button"
               onClick={fetchDashboardStats} 
               className={`nav-btn-icon-only nav-btn-tool ${loading ? 'nav-spin' : ''}`}
               title={t('refreshBtn')}
@@ -764,8 +799,18 @@ export default function Dashboard({
 
             <div className="today-alert-actions">
               <button 
-                onClick={() => setShowNotifications(true)}
+                onClick={() => setShowRemindersModal(true)}
                 className="btn-primary"
+                style={{ padding: '6px 14px', fontSize: '12.5px', gap: '6px' }}
+                title={t('sendRemindersToAll')}
+              >
+                <Send size={13} />
+                {t('sendRemindersToAll')}
+              </button>
+
+              <button 
+                onClick={() => setShowNotifications(true)}
+                className="btn-secondary"
                 style={{ padding: '6px 14px', fontSize: '12.5px' }}
               >
                 {t('viewList')}
@@ -2206,17 +2251,55 @@ export default function Dashboard({
                   placeholder={t('placeholderFullName')}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">{t('labelPhone')}</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="form-input" 
-                  value={newCustomer.phone} 
-                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                  placeholder={t('placeholderPhone')}
-                />
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">{t('labelPhone')}</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="form-input" 
+                    value={newCustomer.phone} 
+                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                    placeholder={t('placeholderPhone')}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{t('whatsappNumber')}</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newCustomer.whatsapp_number} 
+                    onChange={(e) => setNewCustomer({ ...newCustomer, whatsapp_number: e.target.value })}
+                    placeholder="+91..."
+                  />
+                </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">{t('preferredLang')}</label>
+                  <select
+                    className="form-input"
+                    value={newCustomer.preferred_lang}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, preferred_lang: e.target.value })}
+                  >
+                    <option value="ta">தமிழ் (Tamil)</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{t('idProofNumber')}</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newCustomer.id_proof_number} 
+                    onChange={(e) => setNewCustomer({ ...newCustomer, id_proof_number: e.target.value })}
+                    placeholder="Aadhaar / Voter ID"
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">{t('labelArea')}</label>
                 <input 
@@ -2228,6 +2311,7 @@ export default function Dashboard({
                   placeholder={t('placeholderArea')}
                 />
               </div>
+
               <div className="form-group">
                 <label className="form-label">{t('labelAddress')}</label>
                 <input 
@@ -2237,6 +2321,19 @@ export default function Dashboard({
                   onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                   placeholder={t('placeholderAddress')}
                 />
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                <input 
+                  type="checkbox" 
+                  id="notif_toggle"
+                  checked={Boolean(newCustomer.notification_enabled)}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, notification_enabled: e.target.checked ? 1 : 0 })}
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--primary-emerald)', cursor: 'pointer' }}
+                />
+                <label htmlFor="notif_toggle" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}>
+                  {t('allowAutoMessages')} (WhatsApp / SMS)
+                </label>
               </div>
               <button type="submit" className="submit-button" style={{ marginBottom: 0, marginTop: '12px' }}>
                 {t('btnSaveCustomer')}
@@ -2272,15 +2369,41 @@ export default function Dashboard({
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">{t('labelLoanStartDate')}</label>
-                <input 
-                  type="date" 
-                  required 
-                  className="form-input" 
-                  value={newLoan.start_date}
-                  onChange={(e) => setNewLoan({ ...newLoan, start_date: e.target.value })}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">{t('labelLoanStartDate')}</label>
+                  <input 
+                    type="date" 
+                    required 
+                    className="form-input" 
+                    value={newLoan.start_date}
+                    onChange={(e) => {
+                      const sDate = e.target.value;
+                      const d = new Date(sDate);
+                      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                      const autoDay = days[d.getDay()] || 'Monday';
+                      setNewLoan({ ...newLoan, start_date: sDate, collection_day: autoDay });
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{t('collectionDay')}</label>
+                  <select 
+                    className="form-input"
+                    value={newLoan.collection_day || 'Monday'}
+                    onChange={(e) => setNewLoan({ ...newLoan, collection_day: e.target.value })}
+                  >
+                    <option value="Monday">{lang === 'ta' ? 'திங்கள் (Monday)' : 'Monday'}</option>
+                    <option value="Tuesday">{lang === 'ta' ? 'செவ்வாய் (Tuesday)' : 'Tuesday'}</option>
+                    <option value="Wednesday">{lang === 'ta' ? 'புதன் (Wednesday)' : 'Wednesday'}</option>
+                    <option value="Thursday">{lang === 'ta' ? 'வியாழன் (Thursday)' : 'Thursday'}</option>
+                    <option value="Friday">{lang === 'ta' ? 'வெள்ளி (Friday)' : 'Friday'}</option>
+                    <option value="Saturday">{lang === 'ta' ? 'சனி (Saturday)' : 'Saturday'}</option>
+                    <option value="Sunday">{lang === 'ta' ? 'ஞாயிறு (Sunday)' : 'Sunday'}</option>
+                    <option value="Daily">{lang === 'ta' ? 'தினசரி (Daily)' : 'Daily'}</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -2382,6 +2505,17 @@ export default function Dashboard({
         setTheme={toggleTheme ? (newTh) => { if (theme !== newTh) toggleTheme(); } : undefined}
         onShowToast={showToast}
       />
+
+      {/* Automated Due Reminders & Messaging Modal */}
+      {showRemindersModal && (
+        <AutoRemindersModal 
+          token={token}
+          lang={lang}
+          onClose={() => setShowRemindersModal(false)}
+          showToast={showToast}
+          onRefreshDashboard={fetchDashboardStats}
+        />
+      )}
 
       {/* Floating Executive Toast Notification */}
       {toast && (

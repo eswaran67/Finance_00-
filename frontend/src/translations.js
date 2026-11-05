@@ -226,7 +226,37 @@ export const translations = {
     chooseDateForExport: "Choose Date to Export:",
     allDatesOption: "All Dates (Complete History)",
     downloadFileBtn: "Download File",
-    fileSavedToast: "File downloaded successfully to your device!"
+    fileSavedToast: "File downloaded successfully to your device!",
+
+    // Auto Reminders & Messaging
+    autoRemindersNavBtn: "Reminders",
+    remindersModalTitle: "Automated Due Reminders & Messaging",
+    remindersModalSub: "Automatically notify customers when their weekly installment arrives via WhatsApp / SMS",
+    tabTodayDues: "Today's Dues",
+    tabAutoSettings: "Auto-Send Settings",
+    tabMessageLogs: "Delivery History",
+    sendRemindersToAll: "Send Reminders to All Today's Dues",
+    sendSingleReminder: "Send Auto Message",
+    openInWhatsApp: "Direct WhatsApp",
+    remindedToday: "Sent Today",
+    readyToSend: "Ready to Send",
+    collectionDay: "Collection Day",
+    whatsappNumber: "WhatsApp Number",
+    preferredLang: "Preferred Language",
+    allowAutoMessages: "Allow Automated Reminders",
+    idProofNumber: "ID Proof (Aadhaar / Voter ID)",
+    enableDailyAutoReminders: "Enable Daily Automated Reminders",
+    scheduledSendTime: "Scheduled Dispatch Time",
+    tamilTemplate: "Tamil Message Template",
+    englishTemplate: "English Message Template",
+    saveSettings: "Save Settings",
+    settingsSavedSuccess: "Notification settings updated successfully!",
+    broadcastSuccess: "Dispatched reminders to {count} customers successfully!",
+    noDuesToRemind: "No pending dues need reminders today!",
+    liveMessagePreview: "Live Customer Preview",
+    channelWhatsApp: "WhatsApp",
+    channelSms: "SMS",
+    sendingReminders: "Sending Reminders..."
   },
 
   ta: {
@@ -454,7 +484,37 @@ export const translations = {
     chooseDateForExport: "ஏற்றுமதி செய்ய வேண்டிய தேதியை தேர்வு செய்க:",
     allDatesOption: "அனைத்து தேதிகளும் (முழு வரலாறு)",
     downloadFileBtn: "கோப்பைப் பதிவிறக்கு",
-    fileSavedToast: "கோப்பு உங்கள் சாதனத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!"
+    fileSavedToast: "கோப்பு உங்கள் சாதனத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!",
+
+    // Auto Reminders & Messaging
+    autoRemindersNavBtn: "நினைவூட்டல்",
+    remindersModalTitle: "தானியங்கி தவணை நினைவூட்டல் & SMS/WhatsApp",
+    remindersModalSub: "வாடிக்கையாளர்களுக்கு அவர்களின் தவணை நாளில் தானாக வாட்ஸ்அப் அல்லது SMS மூலம் நினைவூட்டல் அனுப்பும் வசதி",
+    tabTodayDues: "இன்றைய தவணைகள்",
+    tabAutoSettings: "தானியங்கி அமைப்புகள்",
+    tabMessageLogs: "அனுப்பிய செய்திகள் பதிவு",
+    sendRemindersToAll: "இன்றைய அனைவருக்கும் நினைவூட்டல் அனுப்பு",
+    sendSingleReminder: "தானாக அனுப்பு",
+    openInWhatsApp: "நேரடி வாட்ஸ்அப்",
+    remindedToday: "இன்று அனுப்பப்பட்டது",
+    readyToSend: "அனுப்ப தயார்",
+    collectionDay: "வசூல் தவணை நாள்",
+    whatsappNumber: "வாட்ஸ்அப் எண்",
+    preferredLang: "விருப்ப மொழி",
+    allowAutoMessages: "தானியங்கி நினைவூட்டல் அனுமதி",
+    idProofNumber: "அடையாள அட்டை எண் (ஆதார் / வாக்காளர் அட்டை)",
+    enableDailyAutoReminders: "தினசரி தானாக நினைவூட்டல் அனுப்ப அனுமதி",
+    scheduledSendTime: "தானாக அனுப்பும் நேரம்",
+    tamilTemplate: "தமிழ் செய்தி வார்ப்புரு",
+    englishTemplate: "ஆங்கில செய்தி வார்ப்புரு",
+    saveSettings: "அமைப்புகளைச் சேமி",
+    settingsSavedSuccess: "நினைவூட்டல் அமைப்புகள் வெற்றிகரமாகச் சேமிக்கப்பட்டன!",
+    broadcastSuccess: "{count} வாடிக்கையாளர்களுக்கு நினைவூட்டல்கள் வெற்றிகரமாக அனுப்பப்பட்டன!",
+    noDuesToRemind: "இன்று நினைவூட்டல் அனுப்ப வேண்டிய நபர்கள் எவருமில்லை!",
+    liveMessagePreview: "வாடிக்கையாளர் மொபைலில் தோன்றும் வடிவம்",
+    channelWhatsApp: "வாட்ஸ்அப்",
+    channelSms: "எஸ்.எம்.எஸ் (SMS)",
+    sendingReminders: "நினைவூட்டல்கள் அனுப்பப்படுகின்றன..."
   }
 };
 

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 import { initDatabase, db } from './db.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import reminderRoutes from './routes/reminderRoutes.js';
+import { checkAndRunDailyAutomatedReminders } from './services/reminderService.js';
 
 dotenv.config();
 
@@ -119,6 +121,9 @@ app.use('/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/dashboard', dashboardRoutes);
 
+app.use('/api/reminders', reminderRoutes);
+app.use('/reminders', reminderRoutes);
+
 // If frontend build exists (e.g. monolithic deployment on Render / Heroku), serve static files
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
@@ -159,6 +164,18 @@ initDatabase().then(() => {
     console.log(` Local URL: http://localhost:${PORT}`);
     console.log(` Health check: http://localhost:${PORT}/api/health`);
     console.log(`===============================================`);
+
+    // Start background auto-reminder scheduler (runs check every 60 seconds)
+    setInterval(() => {
+      checkAndRunDailyAutomatedReminders().catch((err) => {
+        console.error('[Scheduler] Auto-reminder error:', err);
+      });
+    }, 60 * 1000);
+
+    // Initial check 5 seconds after boot
+    setTimeout(() => {
+      checkAndRunDailyAutomatedReminders().catch(() => {});
+    }, 5000);
   });
 }).catch((err) => {
   console.error('[Database] Failed to initialize database:', err);
